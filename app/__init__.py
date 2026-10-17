@@ -1,0 +1,1 @@
+"""UyTop application package."""

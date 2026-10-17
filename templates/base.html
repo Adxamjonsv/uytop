@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}UyTop boshqaruv{% endblock %}</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="/admin">UyTop <span>ADMIN</span></a>{% if admin %}<form method="post" action="/admin/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="quiet">Chiqish</button></form>{% endif %}</header>
+  {% if admin %}<div class="layout"><nav class="nav"><a href="/admin">Dashboard</a><a href="/admin/listings">E’lonlar va moderatsiya</a><a href="/admin/users">Foydalanuvchilar</a><a href="/admin/reports">Shikoyatlar</a><a href="/admin/broadcast">Xabar yuborish</a><a href="/admin/settings">Sozlamalar</a><a href="/admin/audit">Audit jurnali</a></nav><main>{% block content %}{% endblock %}</main></div>{% else %}<main class="login-wrap">{% block login %}{% endblock %}</main>{% endif %}
+</body>
+</html>
