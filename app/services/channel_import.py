@@ -30,7 +30,7 @@ _DISTRICT_ALIASES = {
     "bektemir": ("bektemir", "бектемир"),
     "yangihayot": ("yangihayot", "янгихаёт", "янгахаёт"),
 }
-_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|turi|uy turi|deal|bitim|сделка|rooms?|xona(?:lar)?|xona soni|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
+_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|shahar|город|city|hudud|manzil|адрес|turi|uy turi|deal|bitim|сделка|rooms?|xona(?:lar)?|xona soni|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
 
 
 def _number(raw: str, multiplier: int = 1) -> Decimal:
