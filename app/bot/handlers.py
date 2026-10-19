@@ -347,8 +347,7 @@ async def _send_search_page(message: Message, district_index: str, property_type
             [InlineKeyboardButton(text="Aloqa", callback_data=f"contact:{lid}")]]
     if source_url:
         rows.append([InlineKeyboardButton(text="📣 Kanalda ko‘rish", url=source_url)])
-    rows.append([
-            [InlineKeyboardButton(text="⬅️", callback_data=f"page:{district_index}:{property_type}:{max(0, offset-1)}"), InlineKeyboardButton(text=f"{offset + 1}/{total}", callback_data="noop"), InlineKeyboardButton(text="➡️", callback_data=f"page:{district_index}:{property_type}:{offset+1}")])
+    rows.append([InlineKeyboardButton(text="⬅️", callback_data=f"page:{district_index}:{property_type}:{max(0, offset-1)}"), InlineKeyboardButton(text=f"{offset + 1}/{total}", callback_data="noop"), InlineKeyboardButton(text="➡️", callback_data=f"page:{district_index}:{property_type}:{offset+1}")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
     caption = f"🏠 {title}\n📍 {district_name}\n💰 {price}\n🚪 {rooms} xona · {area} · {floor}-qavat"
     if photo:
