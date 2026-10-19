@@ -54,7 +54,7 @@ def draft_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
 
 def photos_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=translate_text("✅ Rasmlar tayyor", language), callback_data="draft:photos_done")],
+        [InlineKeyboardButton(text=translate_text("✅ Davom etish (rasm ixtiyoriy)", language), callback_data="draft:photos_done")],
         [InlineKeyboardButton(text=translate_text("⬅️ Orqaga", language), callback_data="draft:back"), InlineKeyboardButton(text=translate_text("Bekor qilish", language), callback_data="draft:cancel")],
     ])
 
