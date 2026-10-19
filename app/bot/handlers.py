@@ -1,5 +1,6 @@
 """Telegram commands, search cards, durable listing drafts, and moderation actions."""
 
+import asyncio
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
@@ -21,11 +22,49 @@ from app.services.channel_settings import get_channel_settings, save_channel_set
 
 router = Router(name="uytop")
 _reject_reason_for: dict[int, int] = {}
+_channel_album_batches: dict[str, tuple[list[Message], asyncio.Task]] = {}
+
+
+async def _queue_channel_album(message: Message, bot: Bot, settings: Settings) -> None:
+    key = f"{message.chat.id}:{message.media_group_id}"
+    previous = _channel_album_batches.get(key)
+    batch = previous[0] if previous else []
+    batch.append(message)
+    if previous:
+        previous[1].cancel()
+
+    async def flush() -> None:
+        try:
+            await asyncio.sleep(4)
+            current = _channel_album_batches.pop(key, None)
+            if not current:
+                return
+            items = sorted(current[0], key=lambda item: (not bool(item.caption or item.text), getattr(getattr(item, "forward_origin", None), "message_id", item.message_id)))
+            for index, item in enumerate(items):
+                origin = item.forward_origin
+                if getattr(origin, "type", None) == "channel":
+                    source_chat = getattr(origin, "chat", None)
+                    source_id = getattr(origin, "message_id", None)
+                    if source_chat and source_id:
+                        await import_channel_post(bot, item, settings, source_chat_id=source_chat.id, source_message_id=source_id, source_username=source_chat.username, sync_after=index == len(items) - 1)
+                else:
+                    await import_channel_post(bot, item, settings, sync_after=index == len(items) - 1)
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Telegram albom importida xato")
+
+    task = asyncio.create_task(flush())
+    _channel_album_batches[key] = (batch, task)
 
 
 @router.channel_post()
 @router.edited_channel_post()
 async def channel_listing_sync(message: Message, bot: Bot, settings: Settings) -> None:
+    if message.media_group_id:
+        await _queue_channel_album(message, bot, settings)
+        return
     await import_channel_post(bot, message, settings)
 
 
@@ -38,10 +77,10 @@ async def forwarded_channel_listing(message: Message, bot: Bot, settings: Settin
     source_message_id = getattr(origin, "message_id", None)
     if source_chat is None or source_message_id is None:
         return
-    await import_channel_post(
-        bot, message, settings, source_chat_id=source_chat.id,
-        source_message_id=source_message_id, source_username=source_chat.username,
-    )
+    if message.media_group_id:
+        await _queue_channel_album(message, bot, settings)
+        return
+    await import_channel_post(bot, message, settings, source_chat_id=source_chat.id, source_message_id=source_message_id, source_username=source_chat.username)
 
 
 async def _telegram_user(tg) -> User:
