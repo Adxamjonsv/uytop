@@ -187,7 +187,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 existing = await session.scalar(
                     select(ListingPhoto.id).where(
                         ListingPhoto.listing_id == listing.id,
-                        ListingPhoto.telegram_source_message_id == message.message_id,
+                        ListingPhoto.telegram_source_message_id == message_id,
                     )
                 )
                 if existing is None:
@@ -208,7 +208,10 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
         status = "active" if options["channel_import_mode"] == "auto" and fully_parsed else "pending"
 
         if listing is None:
-            stable_telegram_id = -(abs(message.chat.id) * 1_000_000 + message.message_id)
+            stable_telegram_id = settings.admin_telegram_id_list[0] if settings.admin_telegram_id_list else None
+            if stable_telegram_id is None:
+                await _notify_admins(bot, settings, message_id)
+                return
             owner = await session.scalar(select(User).where(User.telegram_id == stable_telegram_id))
             if owner is None:
                 owner = User(
@@ -228,9 +231,9 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 telegram_channel_message_id=message_id,
                 telegram_channel_media=bool(message.photo or message.video or message.document or message.animation),
                 telegram_media_group_id=group_id,
-                source="channel", channel_chat_id=channel_id, channel_message_id=message.message_id,
+                source="channel", channel_chat_id=channel_id, channel_message_id=message_id,
                 media_group_id=group_id, imported_at=datetime.now(timezone.utc), contact_username=parsed["username"],
-                contact_method="both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] else "phone",
+                contact_method="both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] or not parsed["phone"] else "phone",
                 phone_consent=bool(parsed["phone"]),
                 contact_phone=parsed["phone"],
                 **{key: parsed[key] for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description")},
@@ -238,7 +241,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
             session.add(listing)
             await session.flush()
             if message.photo:
-                session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message.message_id))
+                session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message_id))
         else:
             owner = await session.get(User, listing.owner_id)
             if owner:
@@ -254,7 +257,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
             listing.payment_status = "paid"
             listing.admin_approved = listing.status == "active"
             listing.source = "channel"
-            listing.channel_chat_id, listing.channel_message_id = channel_id, message.message_id
+            listing.channel_chat_id, listing.channel_message_id = channel_id, message_id
             listing.media_group_id, listing.imported_at = group_id, datetime.now(timezone.utc)
             listing.contact_username = parsed["username"]
             listing.telegram_channel_media = bool(message.photo or message.video or message.document or message.animation)
@@ -267,7 +270,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                     cover.file_id = message.photo[-1].file_id
                     cover.telegram_source_message_id = message.message_id
                 else:
-                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message.message_id))
+                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message_id))
         listing_id = listing.id
         if channel_post is None:
             channel_post = ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message.message_id)
