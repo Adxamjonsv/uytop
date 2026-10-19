@@ -110,6 +110,7 @@ git push -u origin main
 | `ADMIN_TELEGRAM_IDS` | Moderator va administrator Telegram ID’lari |
 | `SUPERADMIN_TELEGRAM_IDS` | To‘liq admin huquqi kerak bo‘lgan ID’lar; shu ID’ni `ADMIN_TELEGRAM_IDS` ga ham kiriting |
 | `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` |
+| `LISTING_PAYMENT_USERNAME` | To‘lov narxi va usulini kelishadigan admin; `Adxamjonsv` |
 | `TELEGRAM_CHANNEL_ID` | `@Boshpanago` yoki kanalning `-100...` ID’si |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
