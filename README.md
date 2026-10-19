@@ -83,10 +83,10 @@ git push -u origin main
 | `ADMIN_TELEGRAM_IDS` | Moderator Telegram ID’lari, masalan `123456789,987654321` |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
-| `WEBHOOK_SECRET` | `python -c "import secrets; print(secrets.token_urlsafe(32))"` chiqargan qiymat |
+| `WEBHOOK_SECRET` | Kompyuteringizda buyruq chiqargan tasodifiy qiymatning o‘zi (buyruq matni emas) |
 | `MINI_APP_URL` | `WEBHOOK_BASE_URL` bilan bir xil, oxiri `/` bilan |
 
-3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang.
+> **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.\n\n3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang.
 4. `railway.toml` deploy paytida `alembic upgrade head` bajarib, so‘ng Uvicorn’ni Railway `PORT` qiymatida ochadi. Health check `/health` manzilini tekshiradi.
 5. Birinchi deploy `ADMIN_USERNAME` va `ADMIN_PASSWORD` asosida superadmin yozuvini yaratadi. Keyingi deploylar parolni qayta yozmaydi. Kirish manzili: `https://SIZNING-DOMEN/admin/login`.
 
