@@ -63,7 +63,7 @@ Telefon: +998901234567
 Aloqa: @username
 ```
 
-Narx/tuman/sarlavha topilmasa bot adminlarga xabar yuboradi va postni o‘zgartirmaydi. Kanalda qo‘lda o‘chirilgan xabarni Telegram botga bildirmaydi; e’lonni yopish uchun bot yoki admin paneldagi arxivlash amalidan foydalaning. Kanalda bot qo‘shilishidan oldin joylangan postlar Telegram Bot API orqali tarixdan olinmaydi; ularni yangi update sifatida qayta ishlatish uchun kanal postini tahrirlang yoki qayta joylang. E’lon moderator tasdiqlagach botdan ham kanalga shu formatda chiqadi; arxivlangan, rad etilgan yoki band qilingan e’lon postlari sozlamaga qarab BAND belgisi oladi yoki kanaldan o‘chiriladi.
+Narx/tuman/sarlavha topilmasa bot adminlarga xabar yuboradi va postni o‘zgartirmaydi. Kanalda qo‘lda o‘chirilgan xabarni Telegram botga bildirmaydi; e’lonni yopish uchun bot yoki admin paneldagi arxivlash amalidan foydalaning. Kanalda bot qo‘shilishidan oldin joylangan postlarni olish uchun ularni botning shaxsiy chatiga forward qiling; kanal tarixi Bot API orqali olinmaydi. E’lon moderator tasdiqlagach botdan ham kanalga shu formatda chiqadi; arxivlangan, rad etilgan yoki band qilingan e’lon postlari sozlamaga qarab BAND belgisi oladi yoki kanaldan o‘chiriladi.
 
 ## BotFather sozlamasi
 
