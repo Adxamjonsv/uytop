@@ -41,16 +41,24 @@ Brauzerda `http://127.0.0.1:8000/health` ni oching. Mini App Telegram ichidan oc
 
 Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
 
-Kanalga e’lonni qo‘lda yozish yoki boshqa kanaldan forward qilish mumkin. Bot sarlavha, Toshkent tumani va narxni topgach, postni UyTop e’loniga aylantirib, kanal postining o‘zini brendlangan formatga keltiradi. Masalan:
+Kanalga e’lonni qo‘lda yozish yoki boshqa kanaldan forward qilish mumkin. Bot sarlavha, Toshkent tumani va narxni topsa, e’lonni qidiruv bazasiga qo‘shadi va kanal postini quyidagi tartibda UyTop uslubiga keltiradi. Rasm yuborish ixtiyoriy; rasmsiz matnli e’lon ham ishlaydi. Qo‘shimcha maydonlarni shu nomlar bilan yozing:
 
 ```text
-Kvartira Yunusobodda
-Turi: kvartira
-Bitim: ijara
-Tuman: Yunusobod
-Narx: 5 000 000 UZS
-Xonalar: 2
+2 xonali kvartira — ijaraga beriladi
+Narx: 450 USD / oy
+Shahar: Toshkent
+Tuman: Chilonzor
+Metro: Chilonzor (10 daqiqa)
+Uy turi: yangi dom (monolit)
+Qavat: 4 / 9
 Maydon: 60 m²
+Xonalar soni: 2 xona
+Ta’mir darajasi: Yevro remont
+Kimlarga: Oilaga, qizlarga
+To‘lov turi: Oylik (depozit mavjud)
+Tavsif: Yangi ta’mirlangan, toza va shinam kvartira.
+Mebel va texnika: Konditsioner, televizor, muzlatgich, kir yuvish mashinasi
+Telefon: +998901234567
 Aloqa: @username
 ```
 
