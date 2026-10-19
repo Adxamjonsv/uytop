@@ -99,10 +99,8 @@ BOT_RU = {
     "Rasm saqlandi": "Фото сохранено",
     "ta ko‘rsatildi": "показано",
     "xona ·": "комн. ·",
-    "xona": "комнат",
     "Hudud:": "Район:",
     "Xonadon": "Жильё",
-    "Uy": "Дом",
     "Kvartira": "Квартира",
     "Yotoqxona": "Общежитие",
 }
