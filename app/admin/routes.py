@@ -174,18 +174,32 @@ async def moderate_listing(listing_id: int, request: Request, action: str = Form
         await sync_listing_to_channel(request.app.state.bot, listing_id, request.app.state.settings.telegram_channel_id)
         return RedirectResponse("/admin/listings?status_filter=" + listing.status, status_code=303)
     if action == "reject" and len(reason.strip()) < 5: raise HTTPException(400, "Rad etish sababi kamida 5 belgi bo‘lishi kerak.")
-    if action == "approve": listing.status, log_action = "active", "approved"
-    elif action == "reject": listing.status, listing.rejection_reason, log_action = "rejected", reason.strip()[:1000], "rejected"
-    elif action == "archive": listing.status, log_action = "archived", "hidden"
-    else: listing.status, log_action = "archived", "hidden"
+    if action == "approve":
+        listing.admin_approved = True
+        listing.status = "active" if listing.payment_status == "paid" else "pending"
+        log_action = "approved"
+    elif action == "reject":
+        listing.status, listing.rejection_reason, log_action = "rejected", reason.strip()[:1000], "rejected"
+    elif action == "archive":
+        listing.status, log_action = "archived", "hidden"
+    else:
+        listing.status, log_action = "archived", "hidden"
     listing.moderated_by = admin.id
     session.add(ModerationLog(listing_id=listing.id, moderator_id=admin.id, action=log_action, reason=reason.strip() or None))
-    session.add(AdminAuditLog(admin_id=admin.id, action=f"listing_{action}", entity_type="listing", entity_id=str(listing.id), details={"status": listing.status, "reason": reason[:1000]}))
+    session.add(AdminAuditLog(admin_id=admin.id, action=f"listing_{action}", entity_type="listing", entity_id=str(listing.id), details={"status": listing.status, "payment_status": listing.payment_status, "reason": reason[:1000]}))
     owner = await session.get(User, listing.owner_id)
-    if action in {"approve", "reject"}:
-        notification_text = f"E’loningiz tasdiqlandi: #{listing.id}" if action == "approve" else f"E’loningiz rad etildi. Sabab: {reason.strip()}"
-        session.add(Notification(user_id=owner.id, notification_type=f"listing_{action}", payload={"listing_id": listing.id, "message": notification_text}, delivery_status="queued"))
     owner_tg_id = owner.telegram_id
+    became_active = action == "approve" and listing.status == "active"
+    if action == "approve":
+        notification_text = (
+            f"E’loningiz tasdiqlandi va qidiruvda chiqdi: #{listing.id}"
+            if became_active else
+            f"E’loningiz admin tomonidan ma’qullandi. To‘lov tasdiqlangach bot va kanalda chiqadi: #{listing.id}"
+        )
+        session.add(Notification(user_id=owner.id, notification_type="listing_approved", payload={"listing_id": listing.id, "message": notification_text}, delivery_status="queued"))
+    elif action == "reject":
+        notification_text = f"E’loningiz rad etildi. Sabab: {reason.strip()}"
+        session.add(Notification(user_id=owner.id, notification_type="listing_rejected", payload={"listing_id": listing.id, "message": notification_text}, delivery_status="queued"))
     await session.commit()
     await sync_listing_to_channel(request.app.state.bot, listing_id, request.app.state.settings.telegram_channel_id)
     if action in {"approve", "reject"}:
@@ -197,7 +211,7 @@ async def moderate_listing(listing_id: int, request: Request, action: str = Form
                 await session.commit()
         except Exception:
             pass
-    if action == "approve":
+    if became_active:
         from app.services.notifications import notify_saved_search_matches
         await notify_saved_search_matches(request.app.state.bot, listing.id)
     return RedirectResponse("/admin/listings?status_filter=pending", status_code=303)
