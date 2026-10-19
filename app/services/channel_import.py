@@ -57,22 +57,19 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if len(title) < 5:
         return None
 
-    price_match = re.search(
-        r"(?:narx(?:i)?|цена|стоимость|price|💰|💵)\s*[:—-]?\s*([0-9][0-9\s.,]*)\s*(mln|млн|million)?\s*(USD|UZS|сум|\$)?",
-        text,
-        re.I,
-    )
+    price_pattern = r"(?P<prefix>USD|\$)?\s*(?P<number>[0-9][0-9\s.,]*)\s*(?P<scale>mln|млн|million)?\s*(?P<suffix>USD|UZS|сум|\$|so['’]?m)?"
+    price_match = re.search(r"(?:narx(?:i)?|цена|стоимость|price|💰|💵)\s*[:—-]?\s*" + price_pattern, text, re.I)
     if not price_match:
-        price_match = re.search(r"([0-9][0-9\s.,]*)\s*(mln|млн|million)?\s*(USD|UZS|\$)", text, re.I)
+        price_match = re.search(price_pattern.replace("(?P<prefix>USD|\\$)?", "(?P<prefix>USD|\\$)") , text, re.I)
     if not price_match:
         return None
     try:
-        price = _number(price_match.group(1), 1_000_000 if price_match.group(2) else 1)
+        price = _number(price_match.group("number"), 1_000_000 if price_match.group("scale") else 1)
     except InvalidOperation:
         return None
     if price <= 0:
         return None
-    currency = "USD" if (price_match.group(3) or "").lower() in {"usd", "$"} else "UZS"
+    currency = "USD" if (price_match.group("prefix") or price_match.group("suffix") or "").lower() in {"usd", "$"} else "UZS"
 
     lowered = text.casefold()
     deal_type = "sale" if any(word in lowered for word in ("sotuv", "продажа", "продаётся", "продается", "sale")) else "daily" if any(word in lowered for word in ("kunlik", "сутки", "посуточ", "daily")) else "rent" if any(word in lowered for word in ("ijara", "аренда", "сдается", "сдаётся", "rent")) else "unknown"
