@@ -237,16 +237,12 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
             if message.photo:
                 session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message.message_id))
         else:
-            # Channel edits update fields unless a moderator explicitly protected them.
-            for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description"):
-                if key not in set(listing.channel_overrides or []):
-                    setattr(listing, key, parsed[key])
             owner = await session.get(User, listing.owner_id)
             if owner:
                 owner.username = parsed["username"]
             listing.contact_phone = parsed["phone"]
             listing.phone_consent = bool(parsed["phone"])
-            listing.contact_method = "both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] else "phone"
+            listing.contact_method = "both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] or not parsed["phone"] else "phone"
             overrides = set(listing.channel_overrides or [])
             for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description"):
                 if key not in overrides:
