@@ -18,6 +18,7 @@ from app.db import get_session
 from app.models import Admin, AdminAuditLog, Listing, ModerationLog, Notification, PlatformSetting, Report, User
 from app.security import validate_telegram_init_data
 from app.services.channel_sync import sync_listing_to_channel
+from app.services.channel_settings import get_channel_settings, save_channel_settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 password_hasher = PasswordHash.recommended()
@@ -314,7 +315,8 @@ async def settings_page(request: Request, session: AsyncSession = Depends(get_se
     from app.services.catalog import DEFAULT_PROPERTY_TYPES
     property_types = property_setting.value if property_setting else DEFAULT_PROPERTY_TYPES
     property_lines = "\n".join(f"{item['code']} | {item['label']}" for item in property_types)
-    return _templates(request).TemplateResponse(request=request, name="settings.html", context={"admin": admin, "csrf": request.cookies.get("uytop_csrf", ""), "admins": admins, "districts": districts, "property_lines": property_lines})
+    channel_options = await get_channel_settings(session)
+    return _templates(request).TemplateResponse(request=request, name="settings.html", context={"admin": admin, "csrf": request.cookies.get("uytop_csrf", ""), "admins": admins, "districts": districts, "property_lines": property_lines, "channel_options": channel_options})
 
 
 @router.post("/settings/catalogs")
@@ -338,6 +340,36 @@ async def update_catalogs(request: Request, districts_text: str = Form(...), pro
         if setting is None: session.add(PlatformSetting(key=key, value=value))
         else: setting.value = value
     session.add(AdminAuditLog(admin_id=admin.id, action="catalogs_updated", entity_type="platform_settings", details={"district_count": len(districts), "property_types": props}))
+    await session.commit()
+    return RedirectResponse("/admin/settings", status_code=303)
+
+
+@router.post("/settings/channel")
+async def update_channel_settings(
+    request: Request,
+    csrf: str = Form(...),
+    channel_sync_enabled: str | None = Form(None),
+    channel_import_enabled: str | None = Form(None),
+    channel_import_mode: str = Form(...),
+    channel_rented_action: str = Form(...),
+    channel_rented_keywords: str = Form(""),
+    session: AsyncSession = Depends(get_session),
+):
+    if not hmac.compare_digest(request.cookies.get("uytop_csrf", ""), csrf):
+        raise HTTPException(403, "Forma muddati tugagan.")
+    admin = await _require_superadmin(request, session)
+    values = {
+        "channel_sync_enabled": channel_sync_enabled == "on",
+        "channel_import_enabled": channel_import_enabled == "on",
+        "channel_import_mode": channel_import_mode,
+        "channel_rented_action": channel_rented_action,
+        "channel_rented_keywords": [word.strip() for word in channel_rented_keywords.splitlines() if word.strip()],
+    }
+    try:
+        saved = await save_channel_settings(session, values)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    session.add(AdminAuditLog(admin_id=admin.id, action="channel_settings_updated", entity_type="platform_settings", details=saved))
     await session.commit()
     return RedirectResponse("/admin/settings", status_code=303)
 
