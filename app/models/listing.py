@@ -49,6 +49,8 @@ class Listing(TimestampMixin, Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     telegram_channel_id: Mapped[str | None] = mapped_column(String(80))
     telegram_channel_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    telegram_channel_media: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    telegram_media_group_id: Mapped[str | None] = mapped_column(String(64))
     moderated_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"))
 
 
