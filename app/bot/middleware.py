@@ -4,11 +4,13 @@ import time
 from collections import defaultdict, deque
 
 from aiogram import BaseMiddleware
+from aiogram.types import CallbackQuery
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from app.db import SessionFactory
 from app.models import User
+from app.bot.i18n import language_code, translate_text
 
 
 class AntiFloodMiddleware(BaseMiddleware):
@@ -51,3 +53,53 @@ class AntiFloodMiddleware(BaseMiddleware):
         history.append(now)
         return await handler(event, data)
 
+
+
+class _LocalizedMessage:
+    def __init__(self, message: Message, locale: str):
+        self._message = message
+        self.language_code = locale
+
+    def __getattr__(self, name):
+        return getattr(self._message, name)
+
+    async def answer(self, text, *args, **kwargs):
+        return await self._message.answer(translate_text(text, self.language_code), *args, **kwargs)
+
+    async def answer_photo(self, photo, *args, **kwargs):
+        if kwargs.get("caption") is not None:
+            kwargs["caption"] = translate_text(kwargs["caption"], self.language_code)
+        return await self._message.answer_photo(photo, *args, **kwargs)
+
+    async def edit_text(self, text, *args, **kwargs):
+        return await self._message.edit_text(translate_text(text, self.language_code), *args, **kwargs)
+
+
+class _LocalizedCallback:
+    def __init__(self, callback: CallbackQuery, locale: str):
+        self._callback = callback
+        self.language_code = locale
+
+    def __getattr__(self, name):
+        if name == "message" and self._callback.message is not None:
+            return _LocalizedMessage(self._callback.message, self.language_code)
+        return getattr(self._callback, name)
+
+    async def answer(self, text=None, *args, **kwargs):
+        translated = translate_text(text, self.language_code) if text is not None else None
+        return await self._callback.answer(translated, *args, **kwargs)
+
+
+class LanguageMiddleware(BaseMiddleware):
+    """Load each Telegram user's saved locale and translate outgoing bot copy."""
+
+    async def __call__(self, handler, event, data):
+        tg_user = getattr(event, "from_user", None)
+        if tg_user is None or not isinstance(event, (Message, CallbackQuery)):
+            return await handler(event, data)
+        async with SessionFactory() as session:
+            locale = await session.scalar(select(User.language_code).where(User.telegram_id == tg_user.id))
+        locale = locale or language_code(getattr(tg_user, "language_code", None))
+        data["language_code"] = locale
+        localized = _LocalizedMessage(event, locale) if isinstance(event, Message) else _LocalizedCallback(event, locale)
+        return await handler(localized, data)
