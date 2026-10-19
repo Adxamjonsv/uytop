@@ -30,7 +30,7 @@ _DISTRICT_ALIASES = {
     "bektemir": ("bektemir", "бектемир"),
     "yangihayot": ("yangihayot", "янгихаёт", "янгахаёт"),
 }
-_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|bitim|сделка|deal|rooms?|xona|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
+_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|turi|uy turi|deal|bitim|сделка|rooms?|xona|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
 
 
 def _number(raw: str, multiplier: int = 1) -> Decimal:
@@ -56,7 +56,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         return None
 
     price_match = re.search(
-        r"(?:narx(?:i)?|цена|стоимость|price|💰|💵)\s*[:—-]?\s*([0-9][0-9\s.,]*)\s*(mln|млн|million)?\s*(USD|UZS|руб(?:лей)?|сум|\$)?",
+        r"(?:narx(?:i)?|цена|стоимость|price|💰|💵)\s*[:—-]?\s*([0-9][0-9\s.,]*)\s*(mln|млн|million)?\s*(USD|UZS|сум|\$)?",
         text,
         re.I,
     )
@@ -74,7 +74,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
 
     lowered = text.casefold()
     deal_type = "sale" if any(word in lowered for word in ("sotuv", "продажа", "продаётся", "продается", "sale")) else "daily" if any(word in lowered for word in ("kunlik", "сутки", "посуточ", "daily")) else "rent"
-    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "house" if re.search(r"\b(?:hovli|коттедж)\b|(?:uy|house|дом)\s*(?:turi|type|тип)?\s*[:—-]", lowered) else "apartment"
+    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "household" if any(word in lowered for word in ("xonadon", "жильё", "жилье")) else "house" if re.search(r"\b(?:hovli|коттедж)\b|(?:uy|house|дом)\s*(?:turi|type|тип)?\s*[:—-]|(?:turi|тип жилья)\s*[:—-]\s*(?:uy|house|дом)", lowered) else "apartment"
 
     district = None
     combined = f" {lowered} "
@@ -86,7 +86,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if district is None:
         return None
 
-    rooms_match = re.search(r"(\d+)\s*(?:xonali|xona|комнат(?:ы)?|rooms?)", text, re.I)
+    rooms_match = re.search(r"(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
     contact_text = "\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\.?|связь|contact", line, re.I))
