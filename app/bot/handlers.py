@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import desc, func, select
@@ -15,9 +15,17 @@ from app.bot.i18n import tr, language_code, translate_text
 from app.db import SessionFactory
 from app.models import Admin, AdminAuditLog, Favorite, Inquiry, Listing, ListingDraft, ListingPhoto, ModerationLog, Notification, User
 from app.services.catalog import get_catalogs
+from app.services.channel_import import import_channel_post
+from app.services.channel_sync import sync_listing_to_channel
 
 router = Router(name="uytop")
 _reject_reason_for: dict[int, int] = {}
+
+
+@router.channel_post()
+@router.edited_channel_post()
+async def channel_listing_sync(message: Message, bot: Bot, settings: Settings) -> None:
+    await import_channel_post(bot, message, settings)
 
 
 async def _telegram_user(tg) -> User:
@@ -357,7 +365,7 @@ async def favorites(message: Message) -> None:
 async def draft_text(message: Message, settings: Settings) -> None:
     if message.from_user and message.from_user.id in _reject_reason_for:
         listing_id = _reject_reason_for.pop(message.from_user.id)
-        await _reject_listing(message, listing_id, message.text or "")
+        await _reject_listing(message, listing_id, message.text or "", settings)
         return
     user = await _user(message)
     async with SessionFactory() as session:
@@ -545,6 +553,7 @@ async def approve_listing(callback: CallbackQuery, settings: Settings) -> None:
             await session.commit()
             approved = True
     if approved:
+        await sync_listing_to_channel(callback.bot, listing_id, settings.telegram_channel_id)
         from app.services.notifications import notify_saved_search_matches
         await notify_saved_search_matches(callback.bot, listing_id)
 
@@ -560,7 +569,7 @@ async def request_rejection_reason(callback: CallbackQuery, settings: Settings) 
     await callback.message.answer(f"#{callback.data.rsplit(':', 1)[1]} e’lonni rad etish sababini yozing:")
 
 
-async def _reject_listing(message: Message, listing_id: int, reason: str) -> None:
+async def _reject_listing(message: Message, listing_id: int, reason: str, settings: Settings) -> None:
     async with SessionFactory() as session:
         listing = await session.get(Listing, listing_id)
         if not listing or listing.status != "pending":
@@ -578,6 +587,7 @@ async def _reject_listing(message: Message, listing_id: int, reason: str) -> Non
         owner = await session.get(User, listing.owner_id)
         telegram_id = owner.telegram_id
         notification_id = notification.id
+    await sync_listing_to_channel(message.bot, listing_id, settings.telegram_channel_id)
     try:
         await message.bot.send_message(telegram_id, f"E’loningiz rad etildi. Sabab: {reason[:1000]}")
         delivery_status = "sent"
