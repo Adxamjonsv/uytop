@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     admin_telegram_ids: str = ""
     superadmin_telegram_ids: str = ""
     support_username: str = ""
+    telegram_channel_id: str = ""
     mini_app_url: str = ""
     mode: str = "polling"
     log_level: str = "INFO"
