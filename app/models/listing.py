@@ -15,6 +15,7 @@ class Listing(TimestampMixin, Base):
         CheckConstraint("deal_type IN ('rent', 'sale', 'daily')", name="ck_listings_deal_type"),
         CheckConstraint("property_type IN ('apartment', 'household', 'house', 'dormitory')", name="ck_listings_property_type"),
         CheckConstraint("status IN ('draft', 'pending', 'active', 'rejected', 'rented', 'archived')", name="ck_listings_status"),
+        CheckConstraint("payment_status IN ('unpaid', 'submitted', 'paid')", name="ck_listings_payment_status"),
         CheckConstraint("price > 0", name="ck_listings_price_positive"),
         CheckConstraint("rooms IS NULL OR rooms >= 0", name="ck_listings_rooms_nonnegative"),
         CheckConstraint("area_m2 IS NULL OR area_m2 > 0", name="ck_listings_area_positive"),
@@ -52,6 +53,11 @@ class Listing(TimestampMixin, Base):
     telegram_channel_media: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     telegram_media_group_id: Mapped[str | None] = mapped_column(String(64))
     moderated_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"))
+    payment_status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="unpaid")
+    payment_reference: Mapped[str | None] = mapped_column(String(160))
+    payment_proof_file_id: Mapped[str | None] = mapped_column(String(255))
+    payment_verified_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"))
+    admin_approved: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
 
 
 class ListingPhoto(TimestampMixin, Base):
