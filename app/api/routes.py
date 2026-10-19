@@ -58,6 +58,9 @@ async def _listing_out(session: AsyncSession, listing: Listing, favorite_ids: se
     photos = list((await session.scalars(select(ListingPhoto).where(ListingPhoto.listing_id == listing.id).order_by(ListingPhoto.sort_order))).all())
     result = ListingOut.model_validate(listing).model_dump(mode="json")
     result["photos"] = [f"/api/photos/{quote(photo.file_id, safe='')}" for photo in photos]
+    if listing.source == "channel" and listing.channel_message_id:
+        username = get_settings().channel_username.strip().lstrip("@")
+        result["channel_url"] = f"https://t.me/{username}/{listing.channel_message_id}" if username else None
     if favorite_ids is not None:
         result["is_favorite"] = listing.id in favorite_ids
     return result
