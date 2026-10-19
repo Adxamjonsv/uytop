@@ -29,11 +29,23 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
 
         if listing.status != "active":
             if listing.telegram_channel_id and listing.telegram_channel_message_id:
-                try:
-                    await bot.delete_message(listing.telegram_channel_id, listing.telegram_channel_message_id)
-                except Exception as exc:
-                    logger.warning("UyTop kanal postini olib tashlab bo‘lmadi (%s)", type(exc).__name__)
-                    return
+                source_ids = list((await session.scalars(
+                    select(ListingPhoto.telegram_source_message_id).where(
+                        ListingPhoto.listing_id == listing.id,
+                        ListingPhoto.telegram_source_message_id.is_not(None),
+                    )
+                )).all())
+                message_ids = dict.fromkeys([listing.telegram_channel_message_id, *source_ids])
+                for message_id in message_ids:
+                    try:
+                        await bot.delete_message(listing.telegram_channel_id, message_id)
+                    except Exception as exc:
+                        if "message to delete not found" not in str(exc).lower():
+                            logger.warning("UyTop kanal postini olib tashlab bo‘lmadi (%s)", type(exc).__name__)
+                            return
+                photos = list((await session.scalars(select(ListingPhoto).where(ListingPhoto.listing_id == listing.id))).all())
+                for photo_item in photos:
+                    photo_item.telegram_source_message_id = None
                 listing.telegram_channel_id = None
                 listing.telegram_channel_message_id = None
                 listing.telegram_channel_media = False
