@@ -9,10 +9,14 @@
   <script defer src="/static/app.js"></script>
 </head>
 <body>
-  <header class="header"><a class="logo" href="#home"><span class="logo-mark">⌂</span><span>UyTop<small>Maklersiz uy toping</small></span></a><button id="language-switch" class="avatar" aria-label="Til / Язык">UZ</button><button id="profile-shortcut" class="avatar" aria-label="Profil">U</button></header>
+  <header class="header"><a class="logo" href="#home"><span class="logo-mark"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg></span><span>UyTop<small>Maklersiz uy toping</small></span></a><button id="language-switch" class="avatar" aria-label="Til / Язык">UZ</button><button id="profile-shortcut" class="avatar" aria-label="Profil">U</button></header>
   <main id="screen" class="screen" aria-live="polite"><section class="hero"><div class="skeleton wide"></div><div class="skeleton"></div></section></main>
   <nav class="bottom-nav" aria-label="Asosiy navigatsiya">
-    <button data-page="home" class="active"><span>⌂</span>Asosiy</button><button data-page="search"><span>⌕</span>Qidirish</button><button data-page="add" class="add-nav"><span>＋</span>E’lon berish</button><button data-page="favorites"><span>♡</span>Sevimlilar</button><button data-page="profile"><span>●</span>Profil</button>
+    <button data-page="home" class="active"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Asosiy</button>
+    <button data-page="search"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>Qidirish</button>
+    <button data-page="add" class="add-nav"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>E’lon berish</button>
+    <button data-page="favorites"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.8c0 5.2-8.8 11-8.8 11s-8.8-5.8-8.8-11a4.7 4.7 0 0 1 8.8-2.4 4.7 4.7 0 0 1 8.8 2.4Z"/></svg>Sevimlilar</button>
+    <button data-page="profile"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/></svg>Profil</button>
   </nav>
   <div id="toast" class="toast" role="status"></div>
 </body>
