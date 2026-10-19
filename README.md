@@ -24,7 +24,8 @@ Copy-Item .env.example .env
 - `ADMIN_USERNAME` va `ADMIN_PASSWORD`: birinchi admin uchun login va kamida 12 belgili kuchli parol.
 - `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan va panelga kira oladigan raqamli Telegram ID’lar, vergul bilan ajratiladi.
 - `SUPERADMIN_TELEGRAM_IDS`: panelda foydalanuvchilarni bloklash, xabar yuborish va sozlamalarni o‘zgartirish huquqi beriladigan admin ID’lar. Bu ID’lar `ADMIN_TELEGRAM_IDS` ichida ham bo‘lishi kerak.
-- `SUPPORT_USERNAME`: mijozlar yordam so‘rashi uchun Telegram username, masalan `YordamchiIsmi`; `@UyTopSupport` kodda qattiq yozilmagan.
+- `SUPPORT_USERNAME`: umumiy yordam username’i kerak bo‘lsa kiriting.
+- `LISTING_PAYMENT_USERNAME`: e’lon to‘lovi miqdori va usulini kelishadigan admin username’i; hozir `Adxamjonsv`.
 - `TELEGRAM_CHANNEL_ID`: kanal username’i, masalan `@Boshpanago` (yoki `-100...` channel ID). Bot shu kanalda admin bo‘lishi va xabar yuborish, tahrirlash hamda o‘chirish huquqlariga ega bo‘lishi kerak.
 - Lokal rejim uchun `MODE=polling`; `WEBHOOK_BASE_URL` va `MINI_APP_URL` lokal HTTP’da bo‘sh qolishi mumkin.
 
@@ -39,7 +40,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Brauzerda `http://127.0.0.1:8000/health` ni oching. Mini App Telegram ichidan ochilganda `initData` talab qiladi; oddiy brauzerda haqiqiy foydalanuvchi ma’lumotlari so‘ralmaydi. Admin panel `http://127.0.0.1:8000/admin/login` manzilida.
 
-Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
+Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. Foydalanuvchi bot yoki Mini App’dan e’lon yuborgach, to‘lov summasi va usulini `@Adxamjonsv` bilan lichkada kelishadi va chek yoki tranzaksiya raqamini botga yuboradi. Admin to‘lovni hamda e’lon matnini alohida tasdiqlaydi; ikkala tasdiqdan keyin e’lon qidiruvda va kanalda chiqadi. Kanalga admin joylagan e’lonlar allaqachon ommaviy bo‘lgani uchun sinxron importda tasdiqlangan гэж belgilanadi.
 
 Kanalga e’lonni qo‘lda yozish yoki boshqa kanaldan forward qilish mumkin. Bot sarlavha, Toshkent tumani va narxni topsa, e’lonni qidiruv bazasiga qo‘shadi va kanal postini quyidagi tartibda UyTop uslubiga keltiradi. Rasm yuborish ixtiyoriy; rasmsiz matnli e’lon ham ishlaydi. Qo‘shimcha maydonlarni shu nomlar bilan yozing:
 
