@@ -17,6 +17,7 @@ from app.models import Admin, AdminAuditLog, Favorite, Inquiry, Listing, Listing
 from app.services.catalog import get_catalogs
 from app.services.channel_import import import_channel_post
 from app.services.channel_sync import sync_listing_to_channel
+from app.services.channel_settings import get_channel_settings, save_channel_settings
 
 router = Router(name="uytop")
 _reject_reason_for: dict[int, int] = {}
@@ -92,6 +93,42 @@ async def start(message: Message, settings: Settings) -> None:
     user = await _user(message)
     is_admin = bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)
     await message.answer(tr("welcome", user.language_code), reply_markup=main_menu(settings, user.language_code, is_admin))
+
+
+@router.message(Command("channel"))
+async def channel_settings_command(message: Message, settings: Settings) -> None:
+    if not message.from_user or message.from_user.id not in settings.admin_telegram_id_list:
+        await message.answer("Bu buyruq faqat administrator uchun.")
+        return
+    parts = (message.text or "").split(maxsplit=2)
+    async with SessionFactory() as session:
+        current = await get_channel_settings(session)
+        if len(parts) >= 2:
+            key = parts[1].casefold()
+            if key == "post" and len(parts) == 3 and parts[2].casefold() in {"on", "off"}:
+                await save_channel_settings(session, {"channel_sync_enabled": parts[2].casefold() == "on"})
+            elif key == "import" and len(parts) == 3 and parts[2].casefold() in {"on", "off"}:
+                await save_channel_settings(session, {"channel_import_enabled": parts[2].casefold() == "on"})
+            elif key == "mode" and len(parts) == 3 and parts[2].casefold() in {"review", "auto"}:
+                await save_channel_settings(session, {"channel_import_mode": parts[2].casefold()})
+            elif key == "rented" and len(parts) == 3 and parts[2].casefold() in {"mark", "delete"}:
+                await save_channel_settings(session, {"channel_rented_action": parts[2].casefold()})
+            elif key == "keywords" and len(parts) == 3:
+                await save_channel_settings(session, {"channel_rented_keywords": parts[2].split(",")})
+            else:
+                await message.answer("Buyruq: /channel post on|off, /channel import on|off, /channel mode review|auto, /channel rented mark|delete, /channel keywords band,сдано")
+                return
+        await session.commit()
+        current = await get_channel_settings(session)
+    await message.answer(
+        "Kanal sinxronlash sozlamalari:\n"
+        f"Bot → kanal: {'yoqilgan' if current['channel_sync_enabled'] else 'o‘chirilgan'}\n"
+        f"Kanal → bot: {'yoqilgan' if current['channel_import_enabled'] else 'o‘chirilgan'}\n"
+        f"Import: {current['channel_import_mode']}\n"
+        f"Band amali: {current['channel_rented_action']}\n"
+        f"Kalit so‘zlar: {', '.join(current['channel_rented_keywords'])}\n\n"
+        "O‘zgartirish: /channel post on|off · /channel import on|off · /channel mode review|auto · /channel rented mark|delete · /channel keywords band,сдано"
+    )
 
 
 @router.message(Command("language"))
