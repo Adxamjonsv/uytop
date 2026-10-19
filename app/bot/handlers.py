@@ -11,7 +11,7 @@ from sqlalchemy.orm import joinedload
 
 from app.bot.keyboards import DISTRICTS, draft_keyboard, main_menu, photos_keyboard, district_keyboard, property_keyboard, language_keyboard
 from app.config import Settings
-from app.bot.i18n import tr, language_code
+from app.bot.i18n import tr, language_code, translate_text
 from app.db import SessionFactory
 from app.models import Admin, AdminAuditLog, Favorite, Inquiry, Listing, ListingDraft, ListingPhoto, ModerationLog, Notification, User
 from app.services.catalog import get_catalogs
@@ -71,12 +71,12 @@ async def _show_step(message: Message, step: int, photos: bool = False) -> None:
                    f"💰 {data.get('price', '—')} {data.get('currency', '')}\n🚪 {data.get('rooms', '—')} xona · {data.get('area_m2') or '—'} m²\n\n"
                    f"{data.get('description', '')}\n\nRasmlar: {len(data.get('photos', []))} ta")
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Moderatsiyaga yuborish", callback_data="draft:submit")],
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="draft:back"), InlineKeyboardButton(text="Bekor qilish", callback_data="draft:cancel")],
+            [InlineKeyboardButton(text=translate_text("✅ Moderatsiyaga yuborish", getattr(message, "language_code", "uz")), callback_data="draft:submit")],
+            [InlineKeyboardButton(text=translate_text("⬅️ Orqaga", getattr(message, "language_code", "uz")), callback_data="draft:back"), InlineKeyboardButton(text=translate_text("Bekor qilish", getattr(message, "language_code", "uz")), callback_data="draft:cancel")],
         ])
         await message.answer(summary, reply_markup=keyboard)
         return
-    await message.answer(_step_text(step), reply_markup=photos_keyboard() if photos else draft_keyboard())
+    await message.answer(_step_text(step), reply_markup=photos_keyboard(getattr(message, "language_code", "uz")) if photos else draft_keyboard(getattr(message, "language_code", "uz")))
 
 
 @router.message(CommandStart())
@@ -167,7 +167,7 @@ async def new_listing(message: Message) -> None:
 async def search_start(message: Message) -> None:
     await _user(message)
     catalogs = await get_catalogs()
-    await message.answer("Qaysi tumanda uy qidiryapsiz?", reply_markup=district_keyboard("sd", catalogs["districts"]))
+    await message.answer("Qaysi tumanda uy qidiryapsiz?", reply_markup=district_keyboard("sd", catalogs["districts"], getattr(message, "language_code", "uz")))
 
 
 @router.message(F.text == "📍 Hududlar")
@@ -183,7 +183,7 @@ async def select_search_district(callback: CallbackQuery) -> None:
     value = callback.data.split(":", 1)[1]
     index = "all" if value == "all" else int(value)
     catalogs = await get_catalogs()
-    await callback.message.edit_text("Uy turini tanlang:", reply_markup=property_keyboard("st:" + str(index), catalogs["property_types"]))
+    await callback.message.edit_text("Uy turini tanlang:", reply_markup=property_keyboard("st:" + str(index), catalogs["property_types"], getattr(callback, "language_code", "uz")))
 
 
 @router.callback_query(F.data.startswith("st:"))
@@ -363,7 +363,7 @@ async def draft_text(message: Message, settings: Settings) -> None:
     async with SessionFactory() as session:
         draft = await _get_draft(user.id, session)
         if draft is None:
-            await message.answer("Menyudan kerakli bo‘limni tanlang.", reply_markup=main_menu(settings))
+            await message.answer("Menyudan kerakli bo‘limni tanlang.", reply_markup=main_menu(settings, getattr(message, "language_code", "uz"), bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)))
             return
         values = [part.strip() for part in (message.text or "").split("|")]
         data = dict(draft.data)
@@ -388,7 +388,7 @@ async def draft_text(message: Message, settings: Settings) -> None:
                 if len(values) < 2 or not values[0] or not values[1]: raise ValueError
                 data.update(title=values[0][:180], description=values[1][:5000], amenities=[x.strip() for x in (values[2].split(",") if len(values) > 2 else []) if x.strip()][:20])
             elif draft.current_step == 5:
-                await message.answer("Rasmni surat ko‘rinishida yuboring yoki «Rasmlar tayyor» tugmasini bosing.", reply_markup=photos_keyboard())
+                await message.answer("Rasmni surat ko‘rinishida yuboring yoki «Rasmlar tayyor» tugmasini bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
                 return
             elif draft.current_step == 6:
                 method = values[0].lower()
@@ -399,7 +399,7 @@ async def draft_text(message: Message, settings: Settings) -> None:
                 if data["contact_method"] in {"phone", "both"} and not data["contact_phone"]: raise ValueError
                 if data["contact_phone"] and not data["phone_consent"]: raise ValueError
         except (ValueError, InvalidOperation, KeyError):
-            await message.answer("Kiritilgan ma’lumot formati noto‘g‘ri. Ko‘rsatilgan namuna bo‘yicha qayta yuboring.", reply_markup=draft_keyboard())
+            await message.answer("Kiritilgan ma’lumot formati noto‘g‘ri. Ko‘rsatilgan namuna bo‘yicha qayta yuboring.", reply_markup=draft_keyboard(getattr(message, "language_code", "uz")))
             return
         draft.data = data
         draft.current_step += 1
