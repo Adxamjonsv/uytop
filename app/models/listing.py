@@ -1,9 +1,10 @@
 """Property listings, Telegram-hosted photos, and resumable drafts."""
 
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, JSON, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -79,3 +80,27 @@ class ListingDraft(TimestampMixin, Base):
     source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="bot")
     current_step: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     data: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, server_default=text("'{}'"))
+
+
+class ChannelPost(TimestampMixin, Base):
+    """A source, published, or staging message in the configured Telegram channel."""
+
+    __tablename__ = "channel_posts"
+    __table_args__ = (
+        UniqueConstraint("chat_id", "message_id", name="uq_channel_posts_chat_message"),
+        Index("ix_channel_posts_listing_status", "listing_id", "status"),
+        Index("ix_channel_posts_media_group", "chat_id", "media_group_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    listing_id: Mapped[int | None] = mapped_column(ForeignKey("listings.id", ondelete="SET NULL"))
+    chat_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    message_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    is_album_part: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    posted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=text("now()"))
+    status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="collecting")
+    media_group_id: Mapped[str | None] = mapped_column(String(64))
+    caption: Mapped[str | None] = mapped_column(Text)
+    file_id: Mapped[str | None] = mapped_column(String(255))
+    is_bot_post: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    is_control_post: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
