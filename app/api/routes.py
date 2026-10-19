@@ -61,7 +61,14 @@ async def _listing_out(session: AsyncSession, listing: Listing, favorite_ids: se
 
 @router.get("/me")
 async def me(user: User = Depends(current_user)):
-    return {"id": user.id, "name": user.full_name, "username": user.username, "role": user.role, "phone": user.phone, "notifications_enabled": user.notifications_enabled}
+    return {"id": user.id, "name": user.full_name, "username": user.username, "role": user.role, "phone": user.phone, "notifications_enabled": user.notifications_enabled, "language_code": user.language_code}
+
+
+@router.put("/me/language")
+async def update_language(language_code: str = Query(..., pattern="^(uz|ru)$"), user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+    user.language_code = language_code
+    await session.commit()
+    return {"language_code": user.language_code}
 
 
 @router.get("/catalogs")
