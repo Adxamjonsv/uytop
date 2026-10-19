@@ -57,7 +57,7 @@ def _step_text(step: int) -> str:
         2: "Tuman, mahalla va ixtiyoriy manzilni | bilan ajrating. Masalan: Yunusobod | Minor | Amir Temur ko‘chasi. Aniq manzil ommaga ko‘rsatilmaydi.",
         3: "Narx, valyuta, xona, maydon (m²), qavatni | bilan yuboring. Masalan: 4500000 | UZS | 2 | 60 | 5. Qavat noma’lum bo‘lsa 0 yozing.",
         4: "Sarlavha | tavsif | qulayliklar ko‘rinishida yuboring. Qulayliklar vergul bilan: mebel, konditsioner, Wi-Fi, faqat oilaga, hayvonlarga ruxsat.",
-        5: "E’lon rasmlarini bittalab yuboring. Birinchi rasm asosiy rasm bo‘ladi. Tugagach «Rasmlar tayyor» tugmasini bosing.",
+        5: "Rasm qo‘shish ixtiyoriy. Istasangiz e’lon rasmlarini bittalab yuboring; birinchi rasm asosiy bo‘ladi. Rasmsiz davom etish uchun tugmani bosing.",
         6: "Aloqa usulini yuboring: telegram, telefon yoki ikkalasi. Telefonni e’londa ko‘rsatishga rozilik bersangiz, raqam va «roziman» deb yozing. Masalan: telefon | +998901234567 | roziman. Faqat Telegram uchun: telegram.",
         7: "E’lonni tekshirib, pastdagi tugma orqali moderatsiyaga yuboring.",
     }
@@ -396,7 +396,7 @@ async def draft_text(message: Message, settings: Settings) -> None:
                 if len(values) < 2 or not values[0] or not values[1]: raise ValueError
                 data.update(title=values[0][:180], description=values[1][:5000], amenities=[x.strip() for x in (values[2].split(",") if len(values) > 2 else []) if x.strip()][:20])
             elif draft.current_step == 5:
-                await message.answer("Rasmni surat ko‘rinishida yuboring yoki «Rasmlar tayyor» tugmasini bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
+                await message.answer("Rasm qo‘shish ixtiyoriy: surat yuboring yoki rasmsiz davom etish tugmasini bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
                 return
             elif draft.current_step == 6:
                 method = values[0].lower()
@@ -520,7 +520,7 @@ async def submit_draft(callback: CallbackQuery, settings: Settings) -> None:
 
 @router.message(F.text == "Rasmlar tayyor")
 async def photo_text_done(message: Message) -> None:
-    await message.answer("Pastdagi «Rasmlar tayyor» tugmasini bosing.", reply_markup=photos_keyboard())
+    await message.answer("Rasm ixtiyoriy. Pastdagi davom etish tugmasini bosing.", reply_markup=photos_keyboard())
 
 
 @router.callback_query(F.data.startswith("mod:approve:"))
