@@ -30,7 +30,7 @@ _DISTRICT_ALIASES = {
     "bektemir": ("bektemir", "бектемир"),
     "yangihayot": ("yangihayot", "янгихаёт", "янгахаёт"),
 }
-_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|turi|uy turi|deal|bitim|сделка|rooms?|xona|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
+_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|turi|uy turi|deal|bitim|сделка|rooms?|xona(?:lar)?|xona soni|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
 
 
 def _number(raw: str, multiplier: int = 1) -> Decimal:
@@ -86,7 +86,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if district is None:
         return None
 
-    rooms_match = re.search(r"(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
+    rooms_match = re.search(r"(?:xona(?:lar)?|xona soni|комнат(?:ы)?|rooms?)\s*[:—-]?\s*(\d+)|(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
     contact_text = "\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\.?|связь|contact", line, re.I))
@@ -113,7 +113,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         "property_type": property_type,
         "district": district,
         "neighborhood": neighborhood_match.group(1).strip()[:120] if neighborhood_match else None,
-        "rooms": int(rooms_match.group(1)) if rooms_match else None,
+        "rooms": int(rooms_match.group(1) or rooms_match.group(2)) if rooms_match else None,
         "area_m2": Decimal(area_match.group(1).replace(",", ".")) if area_match else None,
         "description": description,
         "username": handle,
