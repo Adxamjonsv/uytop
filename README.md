@@ -70,13 +70,13 @@ git push -u origin main
 
 ## Railway’ga deploy
 
-1. Railway’da yangi project oching, GitHub’dagi private repository’ni ulang va PostgreSQL service qo‘shing.
+1. Railway’da yangi project oching, GitHub’dagi private repository’ni ulang va PostgreSQL service qo‘shing. PostgreSQL va bot web service bir project ichida bo‘lsin.
 2. Web service Variables bo‘limida quyidagilarni kiriting. Maxfiy qiymatlarni faqat Railway Variables’da saqlang:
 
 | Variable | Qiymat |
 |---|---|
 | `BOT_TOKEN` | BotFather tokeni |
-| `DATABASE_URL` | PostgreSQL service’dan reference qilingan `DATABASE_URL` |
+| `DATABASE_URL` | Variables oynasida PostgreSQL service’dan reference qilingan `DATABASE_URL`; `localhost` manzilini qo‘ymang |
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_hex(32))"` chiqargan qiymat |
 | `ADMIN_USERNAME` | Panel uchun login |
 | `ADMIN_PASSWORD` | Kuchli, kamida 12 belgili parol |
