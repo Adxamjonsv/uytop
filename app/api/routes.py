@@ -167,6 +167,8 @@ async def update_listing(listing_id: int, data: ListingUpdate, request: Request,
     if listing.status == "archived": raise HTTPException(409, "Arxivlangan e’lonni tahrirlab bo‘lmaydi.")
     for key, value in data.model_dump(exclude_unset=True).items():
         setattr(listing, key, value)
+    if listing.source == "channel":
+        listing.channel_overrides = sorted(set(listing.channel_overrides or []) | {key for key in changes if key in {"title", "price", "description"}})
     if listing.status in {"active", "rejected"}:
         listing.status, listing.rejection_reason = "pending", None
         listing.admin_approved = False
