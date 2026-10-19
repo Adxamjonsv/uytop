@@ -17,6 +17,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 from app.db import get_session
 from app.models import Admin, AdminAuditLog, Listing, ModerationLog, Notification, PlatformSetting, Report, User
 from app.security import validate_telegram_init_data
+from app.services.channel_sync import sync_listing_to_channel
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 password_hasher = PasswordHash.recommended()
@@ -170,6 +171,7 @@ async def moderate_listing(listing_id: int, request: Request, action: str = Form
         listing.moderated_by = admin.id
         session.add(AdminAuditLog(admin_id=admin.id, action="listing_edited", entity_type="listing", entity_id=str(listing.id), details={"status": listing.status}))
         await session.commit()
+        await sync_listing_to_channel(request.app.state.bot, listing_id, request.app.state.settings.telegram_channel_id)
         return RedirectResponse("/admin/listings?status_filter=" + listing.status, status_code=303)
     if action == "reject" and len(reason.strip()) < 5: raise HTTPException(400, "Rad etish sababi kamida 5 belgi bo‘lishi kerak.")
     if action == "approve": listing.status, log_action = "active", "approved"
@@ -185,6 +187,7 @@ async def moderate_listing(listing_id: int, request: Request, action: str = Form
         session.add(Notification(user_id=owner.id, notification_type=f"listing_{action}", payload={"listing_id": listing.id, "message": notification_text}, delivery_status="queued"))
     owner_tg_id = owner.telegram_id
     await session.commit()
+    await sync_listing_to_channel(request.app.state.bot, listing_id, request.app.state.settings.telegram_channel_id)
     if action in {"approve", "reject"}:
         try:
             await request.app.state.bot.send_message(owner_tg_id, notification_text)
