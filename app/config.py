@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     def validate_webhook_secret(cls, value: SecretStr) -> SecretStr:
         secret = value.get_secret_value()
         if secret and not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", secret):
-            raise ValueError("WEBHOOK_SECRET faqat lotin harflari, raqam, _ va - belgilaridan iborat bo‘lsin")
+            raise ValueError("WEBHOOK_SECRET noto‘g‘ri. Buyruqni Railway’ga qo‘ymang: uni kompyuteringizda ishga tushirib, faqat hosil bo‘lgan qiymatni Railway Variables maydoniga kiriting (README’dagi ko‘rsatmaga qarang). Ruxsat etilgan belgilar: A-Z, a-z, 0-9, _ va -")
         return value
 
     @property
