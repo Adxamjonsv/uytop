@@ -60,7 +60,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     price_pattern = r"(?P<prefix>USD|\$)?\s*(?P<number>[0-9][0-9\s.,]*)\s*(?P<scale>mln|млн|million)?\s*(?P<suffix>USD|UZS|сум|\$|so['’]?m)?"
     price_match = re.search(r"(?:narx(?:i)?|цена|стоимость|price|💰|💵)\s*[:—-]?\s*" + price_pattern, text, re.I)
     if not price_match:
-        price_match = re.search(r"(?P<prefix>USD|\\$)?\\s*(?P<number>[0-9][0-9\\s.,]*)\\s*(?P<scale>mln|млн|million)?\\s*(?P<suffix>USD|UZS|сум|\\$|so['’]?m)", text, re.I)
+        price_match = re.search(r"(?P<prefix>USD|\$)?\s*(?P<number>[0-9][0-9\s.,]*)\s*(?P<scale>mln|млн|million)?\s*(?P<suffix>USD|UZS|сум|\$|so['’]?m)", text, re.I)
     if not price_match:
         return None
     try:
