@@ -174,7 +174,7 @@ async def search_start(message: Message) -> None:
 @router.message(F.text == "📍 Районы")
 async def districts(message: Message) -> None:
     catalogs = await get_catalogs()
-    await message.answer("Toshkent tumanlari:", reply_markup=district_keyboard("sd", catalogs["districts"]))
+    await message.answer("Toshkent tumanlari:", reply_markup=district_keyboard("sd", catalogs["districts"], getattr(message, "language_code", "uz")))
 
 
 @router.callback_query(F.data.startswith("sd:"))
@@ -439,7 +439,7 @@ async def draft_photo(message: Message) -> None:
         data["photos"] = photos
         draft.data = data
         await session.commit()
-    await message.answer(f"Rasm saqlandi ({len(photos)}/12). Yana rasm yuboring yoki tugmani bosing.", reply_markup=photos_keyboard())
+    await message.answer(f"Rasm saqlandi ({len(photos)}/12). Yana rasm yuboring yoki tugmani bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
 
 
 @router.callback_query(F.data == "draft:photos_done")
