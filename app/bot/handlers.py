@@ -524,19 +524,13 @@ def _payment_review_keyboard(listing_id: int):
 
 
 async def _send_payment_review(bot: Bot, settings: Settings, listing_id: int, owner_name: str, title: str, proof_file_id: str | None = None, reference: str | None = None) -> None:
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     username = settings.listing_payment_username.strip().lstrip("@")
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ To‘lovni tasdiqlash", callback_data=f"payment:approve:{listing_id}"),
-         InlineKeyboardButton(text="↩️ To‘lovni kutish", callback_data=f"payment:reject:{listing_id}")],
-        [InlineKeyboardButton(text="✅ E’lonni ma’qullash", callback_data=f"mod:approve:{listing_id}"),
-         InlineKeyboardButton(text="❌ E’lonni rad etish", callback_data=f"mod:reject:{listing_id}")],
-    ])
     text = f"💳 To‘lov tekshiruvi · e’lon #{listing_id}\n👤 {owner_name}\n🏠 {title}"
     if reference:
         text += f"\n🧾 Tranzaksiya/chek: {reference[:160]}"
     if username:
         text += f"\nTo‘lov summasi va rekvizitlar: @{username} bilan lichkada kelishiladi."
+    keyboard = _payment_review_keyboard(listing_id)
     for admin_id in settings.admin_telegram_id_list:
         try:
             if proof_file_id:
@@ -545,7 +539,6 @@ async def _send_payment_review(bot: Bot, settings: Settings, listing_id: int, ow
                 await bot.send_message(admin_id, text, reply_markup=keyboard)
         except Exception:
             continue
-
 
 async def _latest_unpaid_listing(user_id: int, session):
     return await session.scalar(
