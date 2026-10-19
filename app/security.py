@@ -21,7 +21,10 @@ def validate_telegram_init_data(init_data: str, settings: Settings) -> dict:
         auth_date = int(fields["auth_date"])
         user = json.loads(fields["user"])
     except (ValueError, KeyError, TypeError, json.JSONDecodeError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Telegram tasdiqlash ma'lumoti noto'g'ri.") from None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Telegram Mini App ma’lumoti to‘liq kelmadi. @Boshpanagobot’da /start yuboring va Mini App’ni bot tugmasidan qayta oching.",
+        ) from None
     now = int(time.time())
     if auth_date > now + 30 or now - auth_date > settings.init_data_max_age_seconds:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Telegram sessiyasi eskirgan. Mini App'ni qayta oching.")
