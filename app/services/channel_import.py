@@ -166,11 +166,11 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
                 existing = await session.scalar(
                     select(ListingPhoto.id).where(
                         ListingPhoto.listing_id == listing.id,
-                        ListingPhoto.file_id == message.photo[-1].file_id,
+                        ListingPhoto.telegram_source_message_id == message.message_id,
                     )
                 )
                 if existing is None:
-                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=999, is_cover=False))
+                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=message.message_id, is_cover=False, telegram_source_message_id=message.message_id))
                     await session.commit()
             return
         if not body:
@@ -209,7 +209,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
             session.add(listing)
             await session.flush()
             if message.photo:
-                session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True))
+                session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message.message_id))
         else:
             for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description"):
                 setattr(listing, key, parsed[key])
@@ -228,8 +228,9 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
                 )
                 if cover:
                     cover.file_id = message.photo[-1].file_id
+                    cover.telegram_source_message_id = message.message_id
                 else:
-                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True))
+                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message.message_id))
         listing_id = listing.id
         await session.commit()
 
