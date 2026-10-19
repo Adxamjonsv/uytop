@@ -23,7 +23,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.admin.routes import router as admin_router
 from app.api.routes import router as api_router
 from app.bot.handlers import router as bot_router
-from app.bot.middleware import AntiFloodMiddleware
+from app.bot.middleware import AntiFloodMiddleware, LanguageMiddleware
 from app.config import Settings, get_settings
 from app.db import SessionFactory, engine
 from app.models import Admin, PlatformSetting
@@ -91,6 +91,8 @@ async def lifespan(app: FastAPI):
     dispatcher.include_router(bot_router)
     dispatcher.message.outer_middleware(AntiFloodMiddleware())
     dispatcher.callback_query.outer_middleware(AntiFloodMiddleware())
+    dispatcher.message.outer_middleware(LanguageMiddleware())
+    dispatcher.callback_query.outer_middleware(LanguageMiddleware())
     app.state.settings, app.state.bot, app.state.dispatcher = settings, bot, dispatcher
     polling_task = None
     try:
