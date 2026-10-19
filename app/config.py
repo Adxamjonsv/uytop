@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: SecretStr = SecretStr("")
     admin_telegram_ids: str = ""
+    support_username: str = ""
     mini_app_url: str = ""
     mode: str = "polling"
     log_level: str = "INFO"
