@@ -168,6 +168,8 @@ async def moderate_listing(listing_id: int, request: Request, action: str = Form
         if len(title.strip()) < 5 or edited_price <= 0 or not district.strip() or len(description.strip()) < 10:
             raise HTTPException(422, "Sarlavha, narx, tuman va tavsifni to‘ldiring.")
         listing.title, listing.price, listing.district, listing.description = title.strip()[:180], edited_price, district.strip()[:80], description.strip()[:5000]
+        if listing.source == "channel":
+            listing.channel_overrides = sorted(set(listing.channel_overrides or []) | {"title", "price", "district", "description"})
         if listing.status == "active": listing.status = "pending"
         listing.moderated_by = admin.id
         session.add(AdminAuditLog(admin_id=admin.id, action="listing_edited", entity_type="listing", entity_id=str(listing.id), details={"status": listing.status}))
