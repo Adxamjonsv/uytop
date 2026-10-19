@@ -220,7 +220,8 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
         contact_username = listing.contact_username or (owner.username if owner else None)
         contact_url = f"https://t.me/{contact_username.lstrip('@')}" if contact_username else None
         if not contact_url and listing.phone_consent and listing.contact_phone:
-            contact_url = f"https://wa.me/{re.sub(r'\D', '', listing.contact_phone)}"
+            phone_digits = re.sub(r"\D", "", listing.contact_phone)
+            contact_url = f"https://wa.me/{phone_digits}" if phone_digits else None
         fallback_url = channel_post_url(listing.channel_chat_id, listing.channel_message_id, runtime.channel_username)
         contact_url = contact_url or fallback_url
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
