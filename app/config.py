@@ -8,10 +8,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore", validate_default=True)
 
     bot_token: SecretStr = SecretStr("")
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/uytop"
+    database_url: str = ""
     webhook_base_url: str = ""
     webhook_secret: SecretStr = SecretStr("")
     secret_key: SecretStr = SecretStr("")
@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     @field_validator("database_url", mode="before")
     @classmethod
     def normalize_database_url(cls, value: object) -> str:
-        url = str(value).strip()
+        url = str(value or "").strip()
+        if not url:
+            raise ValueError("DATABASE_URL kiritilmagan. Railway’da PostgreSQL service qo‘shib, uning DATABASE_URL qiymatini web service Variables’iga ulang.")
         if url.startswith("postgres://"):
             url = "postgresql+asyncpg://" + url.removeprefix("postgres://")
         if url.startswith("postgresql://"):
