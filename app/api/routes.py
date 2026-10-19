@@ -60,8 +60,9 @@ async def _listing_out(session: AsyncSession, listing: Listing, favorite_ids: se
 
 
 @router.get("/me")
-async def me(user: User = Depends(current_user)):
-    return {"id": user.id, "name": user.full_name, "username": user.username, "role": user.role, "phone": user.phone, "notifications_enabled": user.notifications_enabled, "language_code": user.language_code}
+async def me(request: Request, user: User = Depends(current_user)):
+    support = request.app.state.settings.support_username.strip().lstrip("@")
+    return {"id": user.id, "name": user.full_name, "username": user.username, "role": user.role, "phone": user.phone, "notifications_enabled": user.notifications_enabled, "language_code": user.language_code, "support_username": support}
 
 
 @router.put("/me/language")
