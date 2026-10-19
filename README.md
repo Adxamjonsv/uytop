@@ -22,7 +22,8 @@ Copy-Item .env.example .env
 - `DATABASE_URL`: PostgreSQL ulanish manzili. Masalan `postgresql+asyncpg://uytop:parol@localhost:5432/uytop`.
 - `SECRET_KEY`: kamida 32 belgili maxfiy qiymat. PowerShell’da `python -c "import secrets; print(secrets.token_hex(32))"` orqali yarating.
 - `ADMIN_USERNAME` va `ADMIN_PASSWORD`: birinchi admin uchun login va kamida 12 belgili kuchli parol.
-- `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan Telegram raqamli ID’lari, vergul bilan ajratiladi. Botdan admin panelga kirish uchun o‘z Telegram ID’ingizni kiriting.
+- `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan va panelga kira oladigan raqamli Telegram ID’lar, vergul bilan ajratiladi.
+- `SUPERADMIN_TELEGRAM_IDS`: panelda foydalanuvchilarni bloklash, xabar yuborish va sozlamalarni o‘zgartirish huquqi beriladigan admin ID’lar. Bu ID’lar `ADMIN_TELEGRAM_IDS` ichida ham bo‘lishi kerak.
 - `SUPPORT_USERNAME`: mijozlar yordam so‘rashi uchun Telegram username, masalan `YordamchiIsmi`; `@UyTopSupport` kodda qattiq yozilmagan.
 - Lokal rejim uchun `MODE=polling`; `WEBHOOK_BASE_URL` va `MINI_APP_URL` lokal HTTP’da bo‘sh qolishi mumkin.
 
@@ -81,7 +82,8 @@ git push -u origin main
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_hex(32))"` chiqargan qiymat |
 | `ADMIN_USERNAME` | Panel uchun login |
 | `ADMIN_PASSWORD` | Kuchli, kamida 12 belgili parol |
-| `ADMIN_TELEGRAM_IDS` | Moderator Telegram ID’lari, masalan `123456789,987654321`; bot ichida admin panelni ochish huquqi ham beradi |
+| `ADMIN_TELEGRAM_IDS` | Moderator va administrator Telegram ID’lari |
+| `SUPERADMIN_TELEGRAM_IDS` | To‘liq admin huquqi kerak bo‘lgan ID’lar; shu ID’ni `ADMIN_TELEGRAM_IDS` ga ham kiriting |
 | `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` ( `@` belgisisiz yoki bilan) |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
@@ -90,7 +92,7 @@ git push -u origin main
 
 > **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.\n\n3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang.
 4. `railway.toml` deploy paytida `alembic upgrade head` bajarib, so‘ng Uvicorn’ni Railway `PORT` qiymatida ochadi. Health check `/health` manzilini tekshiradi.
-5. Birinchi deploy `ADMIN_USERNAME` va `ADMIN_PASSWORD` asosida superadmin yozuvini yaratadi. Keyingi deploylar parolni qayta yozmaydi. Kirish manzili: `https://SIZNING-DOMEN/admin/login`.
+5. Birinchi deploy `ADMIN_USERNAME` va `ADMIN_PASSWORD` asosida web superadmin yaratadi. `SUPERADMIN_TELEGRAM_IDS` dagi bot admini to‘liq huquq bilan kiradi; oddiy `ADMIN_TELEGRAM_IDS` foydalanuvchisi moderator bo‘ladi. Kirish manzili: `https://SIZNING-DOMEN/admin/login`.
 
 Railway Postgres ma’lumotlarini va Telegram rasmlarini doimiy xizmatda saqlaydi. Ilova ko‘p nusxaga scale qilinsa, botni polling rejimida qoldirmang: loyiha webhook rejimini mo‘ljallaydi va per-process anti-flood sanagichi har bir instance’da alohida ishlaydi. PostgreSQL uchun muntazam backup sozlang.
 
