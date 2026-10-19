@@ -62,8 +62,6 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     )
     if not price_match:
         price_match = re.search(r"([0-9][0-9\s.,]*)\s*(mln|млн|million)?\s*(USD|UZS|\$)", text, re.I)
-        if price_match:
-            price_match = re.match(r"([0-9][0-9\\s.,]*)\\s*(USD|UZS|\\$)", price_match.group(0), re.I)
     if not price_match:
         return None
     try:
@@ -105,7 +103,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if phone and phone.startswith("998") and not phone.startswith("+"):
         phone = "+" + phone
 
-    description_lines = [line for line in lines if line != title_line and not _LABEL_LINE.match(re.sub(r"^[^\wА-Яа-яЁё]+", "", line)) and not re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|связь|contact", line, re.I)]
+    description_lines = [line for line in lines if line != title_line and not _LABEL_LINE.match(re.sub(r"^[^\wА-Яа-яЁё]+", "", line)) and not re.match(r"^[^\wА-Яа-яЁё]*(?:💼|📍|💰|🚪|📐|🆔|☎️|📩)", line) and not re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|связь|contact", line, re.I)]
     description = "\n".join(description_lines)[:5000]
     return {
         "title": title[:180],
