@@ -56,6 +56,39 @@ class ApiRateLimitMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+async def _check_channel_permissions(bot: Bot, settings: Settings) -> None:
+    target = settings.channel_target_id
+    if not target:
+        logger.warning("CHANNEL_ID yoki CHANNEL_USERNAME sozlanmagan; kanal sinxronlash o‘chiq.")
+        return
+    try:
+        chat = await bot.get_chat(target)
+        me = await bot.get_me()
+        member = await bot.get_chat_member(chat.id, me.id)
+        missing = []
+        if member.status not in {"administrator", "creator"}:
+            missing.append("botni kanalga administrator qiling")
+        elif member.status != "creator":
+            if not getattr(member, "can_post_messages", False):
+                missing.append("xabar yuborish")
+            if not getattr(member, "can_edit_messages", False):
+                missing.append("xabarlarni tahrirlash")
+            if not getattr(member, "can_delete_messages", False):
+                missing.append("xabarlarni o‘chirish")
+        if not missing:
+            logger.info("Kanal huquqlari tekshirildi: %s", target)
+            return
+        message = "⚠️ UyTop kanal huquqlari yetarli emas: " + ", ".join(missing) + "."
+    except Exception as exc:
+        logger.error("Kanalga ulanish tekshiruvi xatosi (%s)", type(exc).__name__)
+        message = f"⚠️ UyTop kanalini tekshira olmadi ({type(exc).__name__}). CHANNEL_ID va bot adminligini tekshiring."
+    for telegram_id in settings.admin_telegram_id_list:
+        try:
+            await bot.send_message(telegram_id, message)
+        except Exception:
+            pass
+
+
 async def _bootstrap_admins(settings: Settings) -> None:
     """Create initial panel and Telegram moderators without replacing existing accounts."""
     hasher = PasswordHash.recommended()
@@ -97,10 +130,12 @@ async def lifespan(app: FastAPI):
     dispatcher.message.outer_middleware(LanguageMiddleware())
     dispatcher.callback_query.outer_middleware(LanguageMiddleware())
     app.state.settings, app.state.bot, app.state.dispatcher = settings, bot, dispatcher
+    await _check_channel_permissions(bot, settings)
+    allowed_updates = sorted(set(dispatcher.resolve_used_update_types()) | {"channel_post", "edited_channel_post"})
     polling_task = None
     try:
         if settings.mode == "webhook":
-            await bot.set_webhook(f"{settings.webhook_base_url.rstrip('/')}/telegram/webhook", secret_token=settings.webhook_secret.get_secret_value(), drop_pending_updates=False, allowed_updates=dispatcher.resolve_used_update_types())
+            await bot.set_webhook(f"{settings.webhook_base_url.rstrip('/')}/telegram/webhook", secret_token=settings.webhook_secret.get_secret_value(), drop_pending_updates=False, allowed_updates=allowed_updates)
         else:
             await bot.delete_webhook(drop_pending_updates=False)
             polling_task = asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False, allowed_updates=dispatcher.resolve_used_update_types(), settings=settings))
