@@ -61,6 +61,10 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         re.I,
     )
     if not price_match:
+        price_match = re.search(r"([0-9][0-9\\s.,]*)\\s*(USD|UZS|\\$)", text, re.I)
+        if price_match:
+            price_match = re.match(r"([0-9][0-9\\s.,]*)\\s*(USD|UZS|\\$)", price_match.group(0), re.I)
+    if not price_match:
         return None
     try:
         price = _number(price_match.group(1), 1_000_000 if price_match.group(2) else 1)
@@ -72,7 +76,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
 
     lowered = text.casefold()
     deal_type = "sale" if any(word in lowered for word in ("sotuv", "продажа", "продаётся", "продается", "sale")) else "daily" if any(word in lowered for word in ("kunlik", "сутки", "посуточ", "daily")) else "rent"
-    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "house" if re.search(r"\b(?:hovli|коттедж)\b|(?:uy|house|дом)\s*(?:turi|type|тип)?\s*[:—-]", lowered) else "apartment"
+    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "house" if re.search(r"\\b(?:hovli|коттедж)\\b|(?:uy|house|дом)\\s*(?:turi|type|тип)?\\s*[:—-]", lowered) else "apartment"
 
     district = None
     combined = f" {lowered} "
@@ -84,21 +88,24 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if district is None:
         return None
 
-    rooms_match = re.search(r"(\d+)\s*(?:xonali|xona|комнат(?:ы)?|rooms?)", text, re.I)
+    rooms_match = re.search(r"(\\d+)\\s*(?:xonali|xona|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
-    contact_text = "\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\.?|связь|contact", line, re.I))
+    contact_text = "\\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\\.?|связь|contact", line, re.I))
     handles = re.findall(r"(?<![\w])@([A-Za-z][A-Za-z0-9_]{4,31})", contact_text)
     handle = next((item for item in handles if item.casefold() != channel_username.casefold()), None)
     if handle is None:
         links = re.findall(r"(?:https?://)?t\.me/([A-Za-z][A-Za-z0-9_]{4,31})", contact_text, re.I)
         handle = next((item for item in links if item.casefold() != channel_username.casefold()), None)
-    phone_match = re.search(r"(?<!\d)(?:\+?998[\s()-]?)?(?:\d[\s()-]?){9,12}(?!\d)", contact_text)
+    if handle is None:
+        handles = re.findall(r"(?<![\\w])@([A-Za-z][A-Za-z0-9_]{4,31})", text)
+        handle = next((item for item in handles if item.casefold() != channel_username.casefold()), None)
+    phone_match = re.search(r"(?<!\\d)(?:\\+?998[\\s()-]?)?(?:\\d[\\s()-]?){9,12}(?!\\d)", contact_text)
     phone = re.sub(r"[\s()-]", "", phone_match.group(0)) if phone_match else None
     if phone and phone.startswith("998") and not phone.startswith("+"):
         phone = "+" + phone
 
-    description_lines = [line for line in lines if line != title_line and not _LABEL_LINE.match(re.sub(r"^[^\wА-Яа-яЁё]+", "", line)) and not re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|связь|contact", line, re.I)]
+    description_lines = [line for line in lines if line != title_line and not _LABEL_LINE.match(re.sub(r"^[^\\wА-Яа-яЁё]+", "", line)) and not re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|связь|contact", line, re.I)]
     description = "\n".join(description_lines)[:5000]
     return {
         "title": title[:180],
