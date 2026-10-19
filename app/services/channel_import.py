@@ -30,7 +30,7 @@ _DISTRICT_ALIASES = {
     "bektemir": ("bektemir", "бектемир"),
     "yangihayot": ("yangihayot", "янгихаёт", "янгахаёт"),
 }
-_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|rooms?|xona|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|контакт|contact)\s*[:—-]", re.I)
+_LABEL_LINE = re.compile(r"^(?:narx|narxi|цена|price|tuman|район|district|hudud|manzil|адрес|bitim|сделка|deal|rooms?|xona|комнат|area|maydon|площадь|mahalla|махалля|telefon|телефон|aloqa|bog.?lanish|murojaat|контакт|связь|contact)\s*[:—-]", re.I)
 
 
 def _number(raw: str, multiplier: int = 1) -> Decimal:
@@ -50,7 +50,8 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return None
-    title = next((re.sub(r"^[^\wА-Яа-яЁё]+", "", line) for line in lines if not _LABEL_LINE.match(line) and not re.match(r"^(?:https?://|t\.me/|@|#)", line, re.I)), "")
+    title_line = next((line for line in lines if not _LABEL_LINE.match(re.sub(r"^[^\wА-Яа-яЁё]+", "", line)) and not re.match(r"^(?:https?://|t\.me/|@|#)", re.sub(r"^[^\wА-Яа-яЁё]+", "", line), re.I)), "")
+    title = re.sub(r"^[^\wА-Яа-яЁё]+", "", title_line)
     if len(title) < 5:
         return None
 
@@ -71,7 +72,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
 
     lowered = text.casefold()
     deal_type = "sale" if any(word in lowered for word in ("sotuv", "продажа", "продаётся", "продается", "sale")) else "daily" if any(word in lowered for word in ("kunlik", "сутки", "посуточ", "daily")) else "rent"
-    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "house" if re.search(r"\b(?:hovli|uy|дом|house)\b", lowered) else "apartment"
+    property_type = "dormitory" if any(word in lowered for word in ("yotoqxona", "общежити", "dormitory")) else "house" if re.search(r"\b(?:hovli|коттедж)\b|(?:uy|house|дом)\s*(?:turi|type|тип)?\s*[:—-]", lowered) else "apartment"
 
     district = None
     combined = f" {lowered} "
@@ -83,10 +84,10 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if district is None:
         return None
 
-    rooms_match = re.search(r"(\d+)\s*(?:xona|комнат(?:ы)?|rooms?)", text, re.I)
+    rooms_match = re.search(r"(\d+)\s*(?:xonali|xona|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
-    contact_text = "\n".join(line for line in lines if re.search(r"aloqa|kontakt|телефон|тел\.?|связь|contact", line, re.I))
+    contact_text = "\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\.?|связь|contact", line, re.I))
     handles = re.findall(r"(?<![\w])@([A-Za-z][A-Za-z0-9_]{4,31})", contact_text)
     handle = next((item for item in handles if item.casefold() != channel_username.casefold()), None)
     if handle is None:
@@ -97,7 +98,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if phone and phone.startswith("998") and not phone.startswith("+"):
         phone = "+" + phone
 
-    description_lines = [line for line in lines if line != next((item for item in lines if not _LABEL_LINE.match(item) and not re.match(r"^(?:https?://|t\.me/|@|#)", item, re.I)), "")]
+    description_lines = [line for line in lines if line != title_line and not _LABEL_LINE.match(re.sub(r"^[^\wА-Яа-яЁё]+", "", line)) and not re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|связь|contact", line, re.I)]
     description = "\n".join(description_lines)[:5000]
     return {
         "title": title[:180],
