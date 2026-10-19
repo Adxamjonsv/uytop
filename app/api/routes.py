@@ -27,7 +27,10 @@ IMAGE_SIGNATURES = {"image/jpeg": (b"\xff\xd8\xff",), "image/png": (b"\x89PNG\r\
 async def _notify_moderators(request: Request, listing_id: int) -> None:
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     ids = request.app.state.settings.admin_telegram_id_list
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"mod:approve:{listing_id}"), InlineKeyboardButton(text="❌ Rad etish", callback_data=f"mod:reject:{listing_id}")]])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💳 To‘lovni tasdiqlash", callback_data=f"payment:approve:{listing_id}"), InlineKeyboardButton(text="↩️ To‘lovni kutish", callback_data=f"payment:reject:{listing_id}")],
+        [InlineKeyboardButton(text="✅ E’lonni ma’qullash", callback_data=f"mod:approve:{listing_id}"), InlineKeyboardButton(text="❌ Rad etish", callback_data=f"mod:reject:{listing_id}")],
+    ])
     for telegram_id in ids:
         try: await request.app.state.bot.send_message(telegram_id, f"Mini App’dan yangi e’lon: #{listing_id}", reply_markup=keyboard)
         except Exception as exc: logger.warning("Moderatorga e’lon xabari yuborilmadi (%s)", type(exc).__name__)
@@ -136,7 +139,7 @@ async def create_listing(data: ListingCreate, request: Request, user: User = Dep
     catalogs_data = await get_catalogs()
     if data.district not in catalogs_data["districts"]:
         raise HTTPException(422, "Ro‘yxatdan tuman tanlang.")
-    listing = Listing(owner_id=user.id, title=data.title, deal_type=data.deal_type, property_type=data.property_type, status="pending", price=data.price, currency=data.currency, district=data.district, neighborhood=data.neighborhood, address=data.address, rooms=data.rooms, area_m2=data.area_m2, floor=data.floor, total_floors=data.total_floors, description=data.description, amenities=data.amenities, contact_method=data.contact_method, contact_phone=data.contact_phone, phone_consent=data.phone_consent)
+    listing = Listing(owner_id=user.id, title=data.title, deal_type=data.deal_type, property_type=data.property_type, status="pending", payment_status="unpaid", admin_approved=False, price=data.price, currency=data.currency, district=data.district, neighborhood=data.neighborhood, address=data.address, rooms=data.rooms, area_m2=data.area_m2, floor=data.floor, total_floors=data.total_floors, description=data.description, amenities=data.amenities, contact_method=data.contact_method, contact_phone=data.contact_phone, phone_consent=data.phone_consent)
     session.add(listing)
     user.role = "owner"
     await session.flush()
@@ -144,7 +147,14 @@ async def create_listing(data: ListingCreate, request: Request, user: User = Dep
     await session.commit()
     await session.refresh(listing)
     await _notify_moderators(request, listing.id)
-    return {"id": listing.id, "status": listing.status, "message": "E’lon moderator tekshiruviga yuborildi."}
+    username = request.app.state.settings.listing_payment_username.strip().lstrip("@")
+    return {
+        "id": listing.id,
+        "status": listing.status,
+        "payment_status": listing.payment_status,
+        "message": f"E’lon #{listing.id} admin ko‘rigiga yuborildi. To‘lov summasi va usulini @{username} bilan lichkada kelishing, so‘ng chek yoki tranzaksiya raqamini UyTop botiga yuboring. E’lon to‘lov va admin tasdig‘idan keyin bot hamda kanalda chiqadi." if username else "E’lon admin ko‘rigiga yuborildi. To‘lov summasi va usulini admin bilan kelishing; chek yoki tranzaksiya raqamini botga yuboring.",
+        "payment_contact_url": f"https://t.me/{username}" if username else None,
+    }
 
 
 @router.patch("/listings/{listing_id}")
@@ -156,6 +166,7 @@ async def update_listing(listing_id: int, data: ListingUpdate, request: Request,
         setattr(listing, key, value)
     if listing.status in {"active", "rejected"}:
         listing.status, listing.rejection_reason = "pending", None
+        listing.admin_approved = False
     await session.commit()
     await sync_listing_to_channel(request.app.state.bot, listing.id, request.app.state.settings.telegram_channel_id)
     if listing.status == "pending": await _notify_moderators(request, listing.id)
