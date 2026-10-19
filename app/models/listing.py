@@ -17,6 +17,7 @@ class Listing(TimestampMixin, Base):
         CheckConstraint("property_type IN ('apartment', 'household', 'house', 'dormitory')", name="ck_listings_property_type"),
         CheckConstraint("status IN ('draft', 'pending', 'active', 'rejected', 'rented', 'archived')", name="ck_listings_status"),
         CheckConstraint("payment_status IN ('unpaid', 'submitted', 'paid')", name="ck_listings_payment_status"),
+        CheckConstraint("source IN ('bot', 'channel')", name="ck_listings_source"),
         CheckConstraint("price > 0", name="ck_listings_price_positive"),
         CheckConstraint("rooms IS NULL OR rooms >= 0", name="ck_listings_rooms_nonnegative"),
         CheckConstraint("area_m2 IS NULL OR area_m2 > 0", name="ck_listings_area_positive"),
@@ -52,6 +53,13 @@ class Listing(TimestampMixin, Base):
     telegram_channel_id: Mapped[str | None] = mapped_column(String(80))
     telegram_channel_message_id: Mapped[int | None] = mapped_column(BigInteger)
     telegram_channel_media: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
+    source: Mapped[str] = mapped_column(String(16), nullable=False, server_default="bot")
+    channel_chat_id: Mapped[str | None] = mapped_column(String(80))
+    channel_message_id: Mapped[int | None] = mapped_column(BigInteger)
+    media_group_id: Mapped[str | None] = mapped_column(String(64))
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    channel_overrides: Mapped[list[str]] = mapped_column(JSON, nullable=False, server_default=text("'[]'"))
+    contact_username: Mapped[str | None] = mapped_column(String(64))
     telegram_media_group_id: Mapped[str | None] = mapped_column(String(64))
     moderated_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"))
     payment_status: Mapped[str] = mapped_column(String(16), nullable=False, server_default="unpaid")
