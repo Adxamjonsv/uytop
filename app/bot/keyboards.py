@@ -3,20 +3,32 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from app.config import Settings
+from app.bot.i18n import tr
 
 DISTRICTS = ["Yunusobod", "Chilonzor", "Mirobod", "Shayxontohur", "Yakkasaroy", "Mirzo Ulug‘bek", "Sergeli", "Olmazor", "Uchtepa", "Yashnobod", "Bektemir", "Yangihayot"]
 PROPERTY_TYPES = [("Kvartira", "apartment"), ("Xonadon", "household"), ("Uy", "house"), ("Yotoqxona", "dormitory")]
 
 
-def main_menu(settings: Settings) -> ReplyKeyboardMarkup:
+def main_menu(settings: Settings, language: str = "uz", is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
-        [KeyboardButton(text="🔎 Uy qidirish"), KeyboardButton(text="➕ E’lon joylashtirish")],
-        [KeyboardButton(text="📍 Hududlar"), KeyboardButton(text="💚 Sevimlilar")],
-        [KeyboardButton(text="👤 Profil"), KeyboardButton(text="❔ Yordam")],
+        [KeyboardButton(text=tr("menu_search", language)), KeyboardButton(text=tr("menu_add", language))],
+        [KeyboardButton(text=tr("menu_districts", language)), KeyboardButton(text=tr("menu_favorites", language))],
+        [KeyboardButton(text=tr("menu_profile", language)), KeyboardButton(text=tr("menu_help", language))],
+        [KeyboardButton(text=tr("menu_language", language))],
     ]
     if settings.mini_app_url.startswith("https://"):
-        rows.append([KeyboardButton(text="📱 Mini App’ni ochish", web_app=WebAppInfo(url=settings.mini_app_url))])
-    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, input_field_placeholder="Kerakli bo‘limni tanlang")
+        rows.append([KeyboardButton(text=tr("menu_miniapp", language), web_app=WebAppInfo(url=settings.mini_app_url))])
+        if is_admin:
+            admin_url = settings.mini_app_url.rstrip("/") + "/admin/telegram-login"
+            rows.append([KeyboardButton(text=tr("menu_admin", language), web_app=WebAppInfo(url=admin_url))])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, input_field_placeholder=tr("placeholder", language))
+
+
+def language_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🇺🇿 O‘zbekcha", callback_data="language:uz"),
+        InlineKeyboardButton(text="🇷🇺 Русский", callback_data="language:ru"),
+    ]])
 
 
 def district_keyboard(prefix: str = "district", districts: list[str] | None = None) -> InlineKeyboardMarkup:
