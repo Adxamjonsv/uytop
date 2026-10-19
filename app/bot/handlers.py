@@ -114,7 +114,7 @@ async def start(message: Message, settings: Settings) -> None:
             photo = await session.scalar(select(ListingPhoto).where(ListingPhoto.listing_id == listing_id).order_by(ListingPhoto.sort_order).limit(1)) if listing else None
             owner = await session.get(User, listing.owner_id) if listing else None
         if listing:
-            body = f"🏠 {listing.title}\\n📍 {listing.district}\\n💰 {listing.price:,.0f} {listing.currency}\\n🚪 {listing.rooms or '—'} xona · {listing.area_m2 or '—'} m²\\n\\n{listing.description[:1800]}"
+            body = f"🏠 {listing.title}\n📍 {listing.district}\n💰 {listing.price:,.0f} {listing.currency}\n🚪 {listing.rooms or '—'} xona · {listing.area_m2 or '—'} m²\n\n{listing.description[:1800]}"
             contact = listing.contact_username or (owner.username if owner else None)
             buttons = [[InlineKeyboardButton(text="✉️ Bog‘lanish", url=f"https://t.me/{contact.lstrip('@')}")]] if contact else []
             if listing.source == "channel" and settings.channel_username:
