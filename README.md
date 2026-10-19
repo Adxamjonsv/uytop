@@ -111,13 +111,16 @@ git push -u origin main
 | `SUPERADMIN_TELEGRAM_IDS` | To‘liq admin huquqi kerak bo‘lgan ID’lar; shu ID’ni `ADMIN_TELEGRAM_IDS` ga ham kiriting |
 | `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` |
 | `LISTING_PAYMENT_USERNAME` | To‘lov narxi va usulini kelishadigan admin; `Adxamjonsv` |
-| `CHANNEL_ID` | `@Boshpanago` yoki kanalning `-100...` ID’si |\n| `CHANNEL_USERNAME` | `Boshpanago` (public kanal havolalari uchun) |
+| `CHANNEL_ID` | `@Boshpanago` yoki kanalning `-100...` ID’si |
+| `CHANNEL_USERNAME` | `Boshpanago` (public kanal havolalari uchun) |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
 | `WEBHOOK_SECRET` | Kompyuteringizda buyruq chiqargan tasodifiy qiymatning o‘zi (buyruq matni emas) |
 | `MINI_APP_URL` | `WEBHOOK_BASE_URL` bilan bir xil, oxiri `/` bilan |
 
-> **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.\n\n3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang. Botni `@Boshpanago` kanaliga admin qiling va post yuborish, tahrirlash hamda o‘chirish ruxsatlarini yoqing.
+> **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.
+
+3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang. Botni `@Boshpanago` kanaliga admin qiling va post yuborish, tahrirlash hamda o‘chirish ruxsatlarini yoqing.
 4. `railway.toml` deploy paytida `alembic upgrade head` bajarib, so‘ng Uvicorn’ni Railway `PORT` qiymatida ochadi. Health check `/health` manzilini tekshiradi.
 5. Birinchi deploy `ADMIN_USERNAME` va `ADMIN_PASSWORD` asosida web superadmin yaratadi. `SUPERADMIN_TELEGRAM_IDS` dagi bot admini to‘liq huquq bilan kiradi; oddiy `ADMIN_TELEGRAM_IDS` foydalanuvchisi moderator bo‘ladi. Kirish manzili: `https://SIZNING-DOMEN/admin/login`.
 
@@ -145,3 +148,15 @@ alembic history
 - Admin panel login, CSRF cookie, rol nazorati va audit yozuvlari bilan ishlaydi.
 - Deploydan keyin Railway Logs’da migration va `UyTop ishga tushdi` yozuvlarini tekshiring.
 
+
+
+### Kanal sinxronlashni sinash
+
+1. Railway Variables’da `CHANNEL_ID=@Boshpanago` va `CHANNEL_USERNAME=Boshpanago` kiriting. Kanalda botga post yuborish, tahrirlash va o‘chirish huquqlarini bering; deploy logida ruxsat tekshiruvi xabari bo‘lmasin.
+2. Admin botda `/channel` yuborib, bot → kanal va kanal → bot yoqilganini, import rejimi `review` ekanini tekshirsin.
+3. Bot admin qilingandan keyin kanalga narx, Toshkent tumani va sarlavhasi aniq bo‘lgan test post yuboring. Rasmli albom bo‘lsa captionni bitta rasmga qo‘ying; bot 4 soniya kutib, albom rasmlarini bitta e’longa yig‘adi. Admin botida tasdiqlash xabari chiqishi kerak. Tasdiqlagach e’lon bot qidiruvi va Mini App’da ko‘rinadi.
+4. Bot yoki Mini App’dan alohida test e’lon yarating, chek/to‘lovni va e’lonni admin sifatida tasdiqlang. Kanalda UyTop formatidagi post, Batafsil va Bog‘lanish tugmalarini ko‘ring.
+5. E’lonni tahrirlээд, kanal postida matn/rasm шинэчлэгдсэнини tekshiring. So‘ng e’lonni Band qiling: sozlamaga qarab postda BAND belgisi chiqishi yoki post o‘chishi kerak.
+6. Bot admin bo‘lishidan oldin joylangan test postni botning shaxsiy chatiga forward qiling. U moderatsiyaga keladi; Bot API kanal tarixini o‘zi o‘qiy olmaydi.
+
+Xato bo‘lsa Railway Deploy Logs’da `Kanal postini`, `kanal bilan sinxronlanmadi`, `kanal importida` yoki `kanal huquqlari` so‘zlarini qidiring. Botda `/channel` holatini ham tekshiring.
