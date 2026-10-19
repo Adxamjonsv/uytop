@@ -124,13 +124,15 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     }
 
 
-def _matches_channel(message: Message, setting: str) -> bool:
+def _matches_channel(message: Message, setting: str, source_chat_id: int | None = None, source_username: str | None = None) -> bool:
     target = channel_target(setting)
+    candidate_id = source_chat_id if source_chat_id is not None else message.chat.id
+    candidate_username = source_username if source_chat_id is not None else message.chat.username
     if not target:
         return False
     if target.lstrip("-").isdigit():
-        return str(message.chat.id) == target or str(abs(message.chat.id)) == target
-    return (message.chat.username or "").casefold() == target.lstrip("@").casefold()
+        return str(candidate_id) == target or str(abs(candidate_id)) == target.lstrip("-")
+    return (candidate_username or "").casefold() == target.lstrip("@").casefold()
 
 
 async def _notify_admins(bot: Bot, settings: Settings, message_id: int) -> None:
@@ -146,31 +148,32 @@ async def _notify_admins(bot: Bot, settings: Settings, message_id: int) -> None:
             continue
 
 
-async def import_channel_post(bot: Bot, message: Message, settings: Settings) -> None:
-    """Create/update a listing from an admin-authored post in the configured channel."""
-    if not _matches_channel(message, settings.channel_target_id):
+async def import_channel_post(bot: Bot, message: Message, settings: Settings, *, source_chat_id: int | None = None, source_message_id: int | None = None, source_username: str | None = None) -> None:
+    """Create/update a listing from a post in the configured channel or a forwarded copy."""
+    if not _matches_channel(message, settings.channel_target_id, source_chat_id, source_username):
         return
-    channel_id = str(message.chat.id)
+    channel_id = str(source_chat_id if source_chat_id is not None else message.chat.id)
+    message_id = source_message_id if source_message_id is not None else message.message_id
     group_id = message.media_group_id
     body = message.text or message.caption or ""
-    channel_username = message.chat.username or ""
+    channel_username = source_username or message.chat.username or ""
 
     async with SessionFactory() as session:
         options = await get_channel_settings(session)
         if not options["channel_import_enabled"]:
             return
-        channel_post = await session.scalar(select(ChannelPost).where(ChannelPost.chat_id == channel_id, ChannelPost.message_id == message.message_id))
+        channel_post = await session.scalar(select(ChannelPost).where(ChannelPost.chat_id == channel_id, ChannelPost.message_id == message_id))
         body = message.text or message.caption or ""
         if channel_post and channel_post.is_bot_post and (body or "") == (channel_post.caption or ""):
             return
         listing = await session.scalar(
             select(Listing).where(
                 Listing.telegram_channel_id == channel_id,
-                Listing.telegram_channel_message_id == message.message_id,
+                Listing.telegram_channel_message_id == message_id,
             )
         )
         if listing is None:
-            listing = await session.scalar(select(Listing).where(Listing.channel_chat_id == channel_id, Listing.channel_message_id == message.message_id))
+            listing = await session.scalar(select(Listing).where(Listing.channel_chat_id == channel_id, Listing.channel_message_id == message_id))
         if listing is None and group_id and not body:
             listing = await session.scalar(
                 select(Listing).where(
@@ -188,9 +191,9 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
                     )
                 )
                 if existing is None:
-                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=message.message_id, is_cover=False, telegram_source_message_id=message.message_id))
+                    session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=message_id, is_cover=False, telegram_source_message_id=message_id))
                 if channel_post is None:
-                    session.add(ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message.message_id, is_album_part=True, posted_at=message.date, status=listing.status, media_group_id=group_id, file_id=message.photo[-1].file_id, is_bot_post=False))
+                    session.add(ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message_id, is_album_part=True, posted_at=message.date, status=listing.status, media_group_id=group_id, file_id=message.photo[-1].file_id, is_bot_post=False))
                 await session.commit()
             return
         if not body:
@@ -222,7 +225,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
                 payment_status="paid",
                 admin_approved=status == "active",
                 telegram_channel_id=channel_id,
-                telegram_channel_message_id=message.message_id,
+                telegram_channel_message_id=message_id,
                 telegram_channel_media=bool(message.photo or message.video or message.document or message.animation),
                 telegram_media_group_id=group_id,
                 source="channel", channel_chat_id=channel_id, channel_message_id=message.message_id,
