@@ -47,6 +47,8 @@ class Listing(TimestampMixin, Base):
     contact_phone: Mapped[str | None] = mapped_column(String(32))
     phone_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     rejection_reason: Mapped[str | None] = mapped_column(Text)
+    telegram_channel_id: Mapped[str | None] = mapped_column(String(80))
+    telegram_channel_message_id: Mapped[int | None] = mapped_column(BigInteger)
     moderated_by: Mapped[int | None] = mapped_column(ForeignKey("admins.id", ondelete="SET NULL"))
 
 
