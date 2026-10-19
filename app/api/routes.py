@@ -165,7 +165,8 @@ async def update_listing(listing_id: int, data: ListingUpdate, request: Request,
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_id == user.id))
     if listing is None: raise HTTPException(404, "E’lon topilmadi yoki sizga tegishli emas.")
     if listing.status == "archived": raise HTTPException(409, "Arxivlangan e’lonni tahrirlab bo‘lmaydi.")
-    for key, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(listing, key, value)
     if listing.source == "channel":
         listing.channel_overrides = sorted(set(listing.channel_overrides or []) | {key for key in changes if key in {"title", "price", "description"}})
