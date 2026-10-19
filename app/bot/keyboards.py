@@ -39,10 +39,10 @@ def district_keyboard(prefix: str = "district", districts: list[str] | None = No
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def property_keyboard(prefix: str = "ptype", options: list[dict[str, str]] | None = None) -> InlineKeyboardMarkup:
+def property_keyboard(prefix: str = "ptype", options: list[dict[str, str]] | None = None, language: str = "uz") -> InlineKeyboardMarkup:
     values = [(item["label"], item["code"]) for item in options] if options else PROPERTY_TYPES
-    rows = [[InlineKeyboardButton(text=label, callback_data=f"{prefix}:{value}")] for label, value in values]
-    rows.insert(0, [InlineKeyboardButton(text="Barcha turdagi uylar", callback_data=f"{prefix}:all")])
+    rows = [[InlineKeyboardButton(text=translate_text(label, language), callback_data=f"{prefix}:{value}")] for label, value in values]
+    rows.insert(0, [InlineKeyboardButton(text=translate_text("Barcha turdagi uylar", language), callback_data=f"{prefix}:all")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
