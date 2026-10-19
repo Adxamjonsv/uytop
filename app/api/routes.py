@@ -16,6 +16,7 @@ from app.api.schemas import DraftUpdate, ListingCreate, ListingOut, ListingUpdat
 from app.db import get_session
 from app.models import Admin, Favorite, Inquiry, Listing, ListingDraft, ListingPhoto, ListingView, Report, SavedSearch, User
 from app.services.catalog import get_catalogs
+from app.services.channel_sync import sync_listing_to_channel
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["mini-app"])
@@ -156,34 +157,38 @@ async def update_listing(listing_id: int, data: ListingUpdate, request: Request,
     if listing.status in {"active", "rejected"}:
         listing.status, listing.rejection_reason = "pending", None
     await session.commit()
+    await sync_listing_to_channel(request.app.state.bot, listing.id, request.app.state.settings.telegram_channel_id)
     if listing.status == "pending": await _notify_moderators(request, listing.id)
     return {"id": listing.id, "status": listing.status, "message": "O‘zgarishlar moderatsiyaga yuborildi."}
 
 
 @router.post("/listings/{listing_id}/archive")
-async def archive_listing(listing_id: int, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def archive_listing(listing_id: int, request: Request, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_id == user.id))
     if listing is None: raise HTTPException(404, "E’lon topilmadi yoki sizga tegishli emas.")
     listing.status = "archived"
     await session.commit()
+    await sync_listing_to_channel(request.app.state.bot, listing.id, request.app.state.settings.telegram_channel_id)
     return {"status": "archived"}
 
 
 @router.delete("/listings/{listing_id}")
-async def delete_listing(listing_id: int, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def delete_listing(listing_id: int, request: Request, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_id == user.id))
     if listing is None: raise HTTPException(404, "E’lon topilmadi yoki sizga tegishli emas.")
     listing.status = "archived"
     await session.commit()
+    await sync_listing_to_channel(request.app.state.bot, listing.id, request.app.state.settings.telegram_channel_id)
     return {"status": "archived", "message": "E’lon arxivga ko‘chirildi."}
 
 
 @router.post("/listings/{listing_id}/rented")
-async def mark_rented(listing_id: int, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
+async def mark_rented(listing_id: int, request: Request, user: User = Depends(current_user), session: AsyncSession = Depends(get_session)):
     listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.owner_id == user.id))
     if listing is None: raise HTTPException(404, "E’lon topilmadi yoki sizga tegishli emas.")
     listing.status = "rented"
     await session.commit()
+    await sync_listing_to_channel(request.app.state.bot, listing.id, request.app.state.settings.telegram_channel_id)
     return {"status": "rented"}
 
 
