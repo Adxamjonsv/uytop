@@ -11,7 +11,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.orm import joinedload
 
 from app.bot.keyboards import DISTRICTS, draft_keyboard, main_menu, photos_keyboard, district_keyboard, property_keyboard, language_keyboard
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.bot.i18n import tr, language_code, translate_text
 from app.db import SessionFactory
 from app.models import Admin, AdminAuditLog, Favorite, Inquiry, Listing, ListingDraft, ListingPhoto, ModerationLog, Notification, User
@@ -340,11 +340,15 @@ async def _send_search_page(message: Message, district_index: str, property_type
         area = f"{listing.area_m2} m²" if listing.area_m2 else "—"
         floor = listing.floor if listing.floor is not None else "—"
         lid = listing.id
-        has_phone = bool(listing.phone_consent and listing.contact_phone)
+        source_message = listing.channel_message_id or listing.telegram_channel_message_id
+        source_url = f"https://t.me/{get_settings().channel_username.lstrip('@')}/{source_message}" if listing.source == "channel" and source_message else None
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
     rows = [[InlineKeyboardButton(text="Batafsil", callback_data=f"detail:{lid}"), InlineKeyboardButton(text="💚 Saqlash", callback_data=f"fav:{lid}")],
-            [InlineKeyboardButton(text="Aloqa", callback_data=f"contact:{lid}")],
-            [InlineKeyboardButton(text="⬅️", callback_data=f"page:{district_index}:{property_type}:{max(0, offset-1)}"), InlineKeyboardButton(text=f"{offset + 1}/{total}", callback_data="noop"), InlineKeyboardButton(text="➡️", callback_data=f"page:{district_index}:{property_type}:{offset+1}")]]
+            [InlineKeyboardButton(text="Aloqa", callback_data=f"contact:{lid}")]]
+    if source_url:
+        rows.append([InlineKeyboardButton(text="📣 Kanalda ko‘rish", url=source_url)])
+    rows.append([
+            [InlineKeyboardButton(text="⬅️", callback_data=f"page:{district_index}:{property_type}:{max(0, offset-1)}"), InlineKeyboardButton(text=f"{offset + 1}/{total}", callback_data="noop"), InlineKeyboardButton(text="➡️", callback_data=f"page:{district_index}:{property_type}:{offset+1}")])
     keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
     caption = f"🏠 {title}\n📍 {district_name}\n💰 {price}\n🚪 {rooms} xona · {area} · {floor}-qavat"
     if photo:
@@ -370,7 +374,10 @@ async def listing_detail(callback: CallbackQuery) -> None:
             await callback.message.answer("Bu e’lon endi mavjud emas.")
             return
         text = f"{listing.title}\n\n{listing.description}\n\n📍 {listing.district}\n💰 {listing.price:,.0f} {listing.currency}\n🚪 {listing.rooms or '—'} xona · {listing.area_m2 or '—'} m²"
-    await callback.message.answer(text)
+        source_message = listing.channel_message_id or listing.telegram_channel_message_id
+        source_url = f"https://t.me/{get_settings().channel_username.lstrip('@')}/{source_message}" if listing.source == "channel" and source_message else None
+    markup = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="📣 Kanalda ko‘rish", url=source_url)]]) if source_url else None
+    await callback.message.answer(text, reply_markup=markup)
 
 
 @router.callback_query(F.data.startswith("fav:"))
