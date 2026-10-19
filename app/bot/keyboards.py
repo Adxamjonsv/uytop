@@ -3,7 +3,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
 
 from app.config import Settings
-from app.bot.i18n import tr
+from app.bot.i18n import tr, translate_text
 
 DISTRICTS = ["Yunusobod", "Chilonzor", "Mirobod", "Shayxontohur", "Yakkasaroy", "Mirzo Ulug‘bek", "Sergeli", "Olmazor", "Uchtepa", "Yashnobod", "Bektemir", "Yangihayot"]
 PROPERTY_TYPES = [("Kvartira", "apartment"), ("Xonadon", "household"), ("Uy", "house"), ("Yotoqxona", "dormitory")]
@@ -31,11 +31,11 @@ def language_keyboard():
     ]])
 
 
-def district_keyboard(prefix: str = "district", districts: list[str] | None = None) -> InlineKeyboardMarkup:
+def district_keyboard(prefix: str = "district", districts: list[str] | None = None, language: str = "uz") -> InlineKeyboardMarkup:
     names = districts or DISTRICTS
-    buttons = [InlineKeyboardButton(text=name, callback_data=f"{prefix}:{index}") for index, name in enumerate(names)]
+    buttons = [InlineKeyboardButton(text=translate_text(name, language), callback_data=f"{prefix}:{index}") for index, name in enumerate(names)]
     rows = [buttons[index:index + 3] for index in range(0, len(buttons), 3)]
-    rows.append([InlineKeyboardButton(text="Barcha tumanlar", callback_data=f"{prefix}:all")])
+    rows.append([InlineKeyboardButton(text=translate_text("Barcha tumanlar", language), callback_data=f"{prefix}:all")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -46,15 +46,15 @@ def property_keyboard(prefix: str = "ptype", options: list[dict[str, str]] | Non
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def draft_keyboard() -> InlineKeyboardMarkup:
+def draft_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="draft:back"), InlineKeyboardButton(text="Bekor qilish", callback_data="draft:cancel")],
+        [InlineKeyboardButton(text=translate_text("⬅️ Orqaga", language), callback_data="draft:back"), InlineKeyboardButton(text=translate_text("Bekor qilish", language), callback_data="draft:cancel")],
     ])
 
 
-def photos_keyboard() -> InlineKeyboardMarkup:
+def photos_keyboard(language: str = "uz") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ Rasmlar tayyor", callback_data="draft:photos_done")],
-        [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="draft:back"), InlineKeyboardButton(text="Bekor qilish", callback_data="draft:cancel")],
+        [InlineKeyboardButton(text=translate_text("✅ Rasmlar tayyor", language), callback_data="draft:photos_done")],
+        [InlineKeyboardButton(text=translate_text("⬅️ Orqaga", language), callback_data="draft:back"), InlineKeyboardButton(text=translate_text("Bekor qilish", language), callback_data="draft:cancel")],
     ])
 
