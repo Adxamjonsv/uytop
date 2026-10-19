@@ -22,7 +22,8 @@ Copy-Item .env.example .env
 - `DATABASE_URL`: PostgreSQL ulanish manzili. Masalan `postgresql+asyncpg://uytop:parol@localhost:5432/uytop`.
 - `SECRET_KEY`: kamida 32 belgili maxfiy qiymat. PowerShell’da `python -c "import secrets; print(secrets.token_hex(32))"` orqali yarating.
 - `ADMIN_USERNAME` va `ADMIN_PASSWORD`: birinchi admin uchun login va kamida 12 belgili kuchli parol.
-- `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan Telegram raqamli ID’lari, vergul bilan ajratiladi. Ixtiyoriy.
+- `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan Telegram raqamli ID’lari, vergul bilan ajratiladi. Botdan admin panelga kirish uchun o‘z Telegram ID’ingizni kiriting.
+- `SUPPORT_USERNAME`: mijozlar yordam so‘rashi uchun Telegram username, masalan `YordamchiIsmi`; `@UyTopSupport` kodda qattiq yozilmagan.
 - Lokal rejim uchun `MODE=polling`; `WEBHOOK_BASE_URL` va `MINI_APP_URL` lokal HTTP’da bo‘sh qolishi mumkin.
 
 `DATABASE_URL` dan `postgresql://` yoki Railway `postgres://` berilsa ham sozlama uni `postgresql+asyncpg://` ga o‘giradi.
@@ -36,7 +37,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Brauzerda `http://127.0.0.1:8000/health` ni oching. Mini App Telegram ichidan ochilganda `initData` talab qiladi; oddiy brauzerda haqiqiy foydalanuvchi ma’lumotlari so‘ralmaydi. Admin panel `http://127.0.0.1:8000/admin/login` manzilida.
 
-Bot menyusi `/start`, `/search`, `/new`, `/myads` va `/help` buyruqlari bilan ishlaydi. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
+Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
 
 ## BotFather sozlamasi
 
@@ -80,7 +81,8 @@ git push -u origin main
 | `SECRET_KEY` | `python -c "import secrets; print(secrets.token_hex(32))"` chiqargan qiymat |
 | `ADMIN_USERNAME` | Panel uchun login |
 | `ADMIN_PASSWORD` | Kuchli, kamida 12 belgili parol |
-| `ADMIN_TELEGRAM_IDS` | Moderator Telegram ID’lari, masalan `123456789,987654321` |
+| `ADMIN_TELEGRAM_IDS` | Moderator Telegram ID’lari, masalan `123456789,987654321`; bot ichida admin panelni ochish huquqi ham beradi |
+| `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` ( `@` belgisisiz yoki bilan) |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
 | `WEBHOOK_SECRET` | Kompyuteringizda buyruq chiqargan tasodifiy qiymatning o‘zi (buyruq matni emas) |
