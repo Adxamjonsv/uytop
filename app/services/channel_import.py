@@ -88,7 +88,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
     if district is None:
         return None
 
-    rooms_match = re.search(r"(?:xona(?:lar)?|xona soni|комнат(?:ы)?|rooms?)\s*[:—-]?\s*(\d+)|(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
+    rooms_match = re.search(r"(?:xona(?:lar)?|xona soni|комнат(?:ы)?|rooms?)\s*[:—-]?\s*(\d+)|(\d+)\s*-?\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
     floor_match = re.search(r"(?:(\d+)\s*-?\s*(?:qavat|этаж)(?:\s*/\s*(\d+))?)|(?:(?:qavat|этаж)\s*[:—-]?\s*(\d+)(?:\s*/\s*(\d+))?)|(?<!\d)(\d+)\s*/\s*(\d+)", text, re.I)
     amenities_match = re.search(r"(?:qulayliklar|mebel(?: va texnika)?|мебель|удобства)\s*[:—-]\s*([^\n]+)", text, re.I)
@@ -120,8 +120,8 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         "neighborhood": neighborhood_match.group(1).strip()[:120] if neighborhood_match else None,
         "rooms": int(rooms_match.group(1) or rooms_match.group(2)) if rooms_match else None,
         "area_m2": Decimal(area_match.group(1).replace(",", ".")) if area_match else None,
-        "floor": int(next(group for group in floor_match.groups() if group is not None)) if floor_match else None,
-        "total_floors": int(next((group for group in floor_match.groups()[1:] if group is not None), 0)) or None if floor_match else None,
+        "floor": int(floor_match.group(1) or floor_match.group(3) or floor_match.group(5)) if floor_match else None,
+        "total_floors": int(floor_match.group(2) or floor_match.group(4) or floor_match.group(6)) if floor_match and (floor_match.group(2) or floor_match.group(4) or floor_match.group(6)) else None,
         "amenities": amenities,
         "description": description,
         "username": handle,
