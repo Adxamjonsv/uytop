@@ -154,7 +154,7 @@ async def _notify_admins(bot: Bot, settings: Settings, message_id: int) -> None:
             continue
 
 
-async def import_channel_post(bot: Bot, message: Message, settings: Settings, *, source_chat_id: int | None = None, source_message_id: int | None = None, source_username: str | None = None) -> None:
+async def import_channel_post(bot: Bot, message: Message, settings: Settings, *, source_chat_id: int | None = None, source_message_id: int | None = None, source_username: str | None = None, sync_after: bool = True) -> None:
     """Create/update a listing from a post in the configured channel or a forwarded copy."""
     if not _matches_channel(message, settings.channel_target_id, source_chat_id, source_username):
         return
@@ -208,6 +208,8 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 if channel_post is None:
                     session.add(ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message_id, is_album_part=True, posted_at=message.date, status=listing.status, media_group_id=group_id, file_id=message.photo[-1].file_id, is_bot_post=False))
                 await session.commit()
+                if sync_after:
+                    await sync_listing_to_channel(bot, listing.id, settings.channel_target_id)
             return
         if not body:
             return
@@ -263,7 +265,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
             listing.phone_consent = bool(parsed["phone"])
             listing.contact_method = "both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] or not parsed["phone"] else "phone"
             overrides = set(listing.channel_overrides or [])
-            for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description"):
+            for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "floor", "total_floors", "amenities", "description"):
                 if key not in overrides:
                     setattr(listing, key, parsed[key])
             listing.status = "active" if options["channel_import_mode"] == "auto" and fully_parsed else "pending"
@@ -310,4 +312,5 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 await bot.send_message(admin_id, f"📥 Kanaldan yangi e’lon moderatsiyasi · #{listing_id}\\n{parsed['title']}\\n{parsed['district']} · {parsed['price']} {parsed['currency']}", reply_markup=keyboard)
             except Exception:
                 continue
-    await sync_listing_to_channel(bot, listing_id, settings.channel_target_id)
+    if sync_after:
+        await sync_listing_to_channel(bot, listing_id, settings.channel_target_id)
