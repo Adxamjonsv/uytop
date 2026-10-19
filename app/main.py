@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
     polling_task = None
     try:
         if settings.mode == "webhook":
-            await bot.set_webhook(f"{settings.webhook_base_url.rstrip('/')}/telegram/webhook", secret_token=settings.webhook_secret.get_secret_value(), drop_pending_updates=False)
+            await bot.set_webhook(f"{settings.webhook_base_url.rstrip('/')}/telegram/webhook", secret_token=settings.webhook_secret.get_secret_value(), drop_pending_updates=False, allowed_updates=dispatcher.resolve_used_update_types())
         else:
             await bot.delete_webhook(drop_pending_updates=False)
             polling_task = asyncio.create_task(dispatcher.start_polling(bot, handle_signals=False, allowed_updates=dispatcher.resolve_used_update_types(), settings=settings))
