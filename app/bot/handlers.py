@@ -487,6 +487,57 @@ async def draft_cancel(callback: CallbackQuery) -> None:
     await callback.message.answer("Qoralama saqlandi. Keyin «E’lon joylashtirish»ni bosing.")
 
 
+def _payment_review_keyboard(listing_id: int):
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="💳 To‘lovni tasdiqlash", callback_data=f"payment:approve:{listing_id}"),
+            InlineKeyboardButton(text="↩️ To‘lovni kutish", callback_data=f"payment:reject:{listing_id}"),
+        ],
+        [
+            InlineKeyboardButton(text="✅ E’lonni ma’qullash", callback_data=f"mod:approve:{listing_id}"),
+            InlineKeyboardButton(text="❌ E’lonni rad etish", callback_data=f"mod:reject:{listing_id}"),
+        ],
+    ])
+
+
+async def _send_payment_review(bot: Bot, settings: Settings, listing_id: int, owner_name: str, title: str, proof_file_id: str | None = None, reference: str | None = None) -> None:
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    username = settings.listing_payment_username.strip().lstrip("@")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ To‘lovni tasdiqlash", callback_data=f"payment:approve:{listing_id}"),
+         InlineKeyboardButton(text="↩️ To‘lovni kutish", callback_data=f"payment:reject:{listing_id}")],
+        [InlineKeyboardButton(text="✅ E’lonni ma’qullash", callback_data=f"mod:approve:{listing_id}"),
+         InlineKeyboardButton(text="❌ E’lonni rad etish", callback_data=f"mod:reject:{listing_id}")],
+    ])
+    text = f"💳 To‘lov tekshiruvi · e’lon #{listing_id}\n👤 {owner_name}\n🏠 {title}"
+    if reference:
+        text += f"\n🧾 Tranzaksiya/chek: {reference[:160]}"
+    if username:
+        text += f"\nTo‘lov summasi va rekvizitlar: @{username} bilan lichkada kelishiladi."
+    for admin_id in settings.admin_telegram_id_list:
+        try:
+            if proof_file_id:
+                await bot.send_photo(admin_id, proof_file_id, caption=text, reply_markup=keyboard)
+            else:
+                await bot.send_message(admin_id, text, reply_markup=keyboard)
+        except Exception:
+            continue
+
+
+async def _latest_unpaid_listing(user_id: int, session):
+    return await session.scalar(
+        select(Listing)
+        .where(
+            Listing.owner_id == user_id,
+            Listing.status == "pending",
+            Listing.payment_status.in_(("unpaid", "submitted")),
+        )
+        .order_by(desc(Listing.created_at))
+        .limit(1)
+    )
+
+
 @router.callback_query(F.data == "draft:submit")
 async def submit_draft(callback: CallbackQuery, settings: Settings) -> None:
     await callback.answer()
@@ -497,26 +548,27 @@ async def submit_draft(callback: CallbackQuery, settings: Settings) -> None:
             await callback.message.answer("Qoralama topilmadi. /new orqali boshlang.")
             return
         data = draft.data
-        listing = Listing(owner_id=user.id, title=data["title"], deal_type=data["deal_type"], property_type=data["property_type"], status="pending", price=Decimal(data["price"]), currency=data["currency"], district=data["district"], neighborhood=data.get("neighborhood") or None, address=data.get("address") or None, rooms=data["rooms"], area_m2=Decimal(data["area_m2"]) if data.get("area_m2") else None, floor=data["floor"], description=data["description"], amenities=data.get("amenities", []), contact_method=data["contact_method"], contact_phone=data.get("contact_phone"), phone_consent=data.get("phone_consent", False))
+        listing = Listing(owner_id=user.id, title=data["title"], deal_type=data["deal_type"], property_type=data["property_type"], status="pending", price=Decimal(data["price"]), currency=data["currency"], district=data["district"], neighborhood=data.get("neighborhood") or None, address=data.get("address") or None, rooms=data["rooms"], area_m2=Decimal(data["area_m2"]) if data.get("area_m2") else None, floor=data["floor"], description=data["description"], amenities=data.get("amenities", []), contact_method=data["contact_method"], contact_phone=data.get("contact_phone"), phone_consent=data.get("phone_consent", False), payment_status="unpaid", admin_approved=False)
         user.role = "owner"
         session.add(listing)
         await session.flush()
         session.add_all([ListingPhoto(listing_id=listing.id, file_id=file_id, sort_order=index, is_cover=index == 0) for index, file_id in enumerate(data.get("photos", []))])
         await session.delete(draft)
         await session.commit()
-        listing_id = listing.id
-    await callback.message.answer(f"✅ E’lon #{listing_id} moderator tekshiruviga yuborildi. Tasdiqlanmaguncha qidiruvda ko‘rinmaydi.")
-    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-    moderation_keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"mod:approve:{listing_id}"),
-        InlineKeyboardButton(text="❌ Rad etish", callback_data=f"mod:reject:{listing_id}"),
-    ]])
-    for admin_telegram_id in settings.admin_telegram_id_list:
-        try:
-            await callback.bot.send_message(admin_telegram_id, f"Yangi e’lon moderatsiyaga keldi: #{listing_id}", reply_markup=moderation_keyboard)
-        except Exception:
-            continue
+        listing_id, title, owner_name = listing.id, listing.title, user.full_name
 
+    await _send_payment_review(callback.bot, settings, listing_id, owner_name, title)
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+    username = settings.listing_payment_username.strip().lstrip("@")
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=f"💬 To‘lov summasi va rekvizitlar: @{username}", url=f"https://t.me/{username}")
+    ]]) if username else None
+    await callback.message.answer(
+        f"📨 E’lon #{listing_id} admin tekshiruviga yuborildi.\n\n"
+        "To‘lov summasi va usulini admin bilan lichkada kelishib, to‘lov qilganingizdan so‘ng chek rasmini yoki tranzaksiya raqamini shu botga yuboring. "
+        "E’lon faqat to‘lov hamda admin tasdig‘idan keyin qidiruv va kanalga chiqadi.",
+        reply_markup=keyboard,
+    )
 
 @router.message(F.text == "Rasmlar tayyor")
 async def photo_text_done(message: Message) -> None:
