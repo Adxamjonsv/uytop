@@ -202,6 +202,8 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
             listing = Listing(
                 owner_id=owner.id,
                 status="active",
+                payment_status="paid",
+                admin_approved=True,
                 telegram_channel_id=channel_id,
                 telegram_channel_message_id=message.message_id,
                 telegram_channel_media=bool(message.photo or message.video or message.document or message.animation),
@@ -225,6 +227,8 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings) ->
             listing.phone_consent = bool(parsed["phone"])
             listing.contact_method = "both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] else "phone"
             listing.status = "active"
+            listing.payment_status = "paid"
+            listing.admin_approved = True
             listing.telegram_channel_media = bool(message.photo or message.video or message.document or message.animation)
             listing.telegram_media_group_id = group_id
             if message.photo:
