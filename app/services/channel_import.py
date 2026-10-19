@@ -90,7 +90,7 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
 
     rooms_match = re.search(r"(?:xona(?:lar)?|xona soni|комнат(?:ы)?|rooms?)\s*[:—-]?\s*(\d+)|(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
-    floor_match = re.search(r"(?:qavat|этаж)\s*[:—-]?\s*(\d+)(?:\s*/\s*(\d+))?|(?<!\d)(\d+)\s*/\s*(\d+)(?:\s*(?:qavat|этаж))?", text, re.I)
+    floor_match = re.search(r"(?:(\d+)\s*-?\s*(?:qavat|этаж)(?:\s*/\s*(\d+))?)|(?:(?:qavat|этаж)\s*[:—-]?\s*(\d+)(?:\s*/\s*(\d+))?)|(?<!\d)(\d+)\s*/\s*(\d+)", text, re.I)
     amenities_match = re.search(r"(?:qulayliklar|mebel(?: va texnika)?|мебель|удобства)\s*[:—-]\s*([^\n]+)", text, re.I)
     amenities = [part.strip()[:40] for part in re.split(r"[,;]", amenities_match.group(1)) if part.strip()] if amenities_match else []
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
@@ -120,8 +120,8 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         "neighborhood": neighborhood_match.group(1).strip()[:120] if neighborhood_match else None,
         "rooms": int(rooms_match.group(1) or rooms_match.group(2)) if rooms_match else None,
         "area_m2": Decimal(area_match.group(1).replace(",", ".")) if area_match else None,
-        "floor": int(floor_match.group(1) or floor_match.group(3)) if floor_match else None,
-        "total_floors": int(floor_match.group(2) or floor_match.group(4)) if floor_match and (floor_match.group(2) or floor_match.group(4)) else None,
+        "floor": int(next(group for group in floor_match.groups() if group is not None)) if floor_match else None,
+        "total_floors": int(next((group for group in floor_match.groups()[1:] if group is not None), 0)) or None if floor_match else None,
         "amenities": amenities,
         "description": description,
         "username": handle,
@@ -303,10 +303,10 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
         await session.commit()
 
     if pending:
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"mod:approve:{listing_id}"),
-            InlineKeyboardButton(text="❌ Rad etish", callback_data=f"mod:reject:{listing_id}"),
-        ]])
+        keyboard_rows = [[InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"mod:approve:{listing_id}"), InlineKeyboardButton(text="❌ Rad etish", callback_data=f"mod:reject:{listing_id}")]]
+        if settings.mini_app_url.startswith("https://"):
+            keyboard_rows.append([InlineKeyboardButton(text="✏️ Panelda tahrirlash", url=settings.mini_app_url.rstrip("/") + f"/admin/listings?status_filter=pending")])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
         for admin_id in settings.admin_telegram_id_list:
             try:
                 await bot.send_message(admin_id, f"📥 Kanaldan yangi e’lon moderatsiyasi · #{listing_id}\\n{parsed['title']}\\n{parsed['district']} · {parsed['price']} {parsed['currency']}", reply_markup=keyboard)
