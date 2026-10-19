@@ -90,6 +90,9 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
 
     rooms_match = re.search(r"(?:xona(?:lar)?|xona soni|комнат(?:ы)?|rooms?)\s*[:—-]?\s*(\d+)|(\d+)\s*(?:xonali|xona(?:lar)?|комнат(?:ы)?|rooms?)", text, re.I)
     area_match = re.search(r"(\d+(?:[.,]\d+)?)\s*(?:m²|m2|кв\.?\s*м|м²)", text, re.I)
+    floor_match = re.search(r"(?:qavat|этаж)\s*[:—-]?\s*(\d+)(?:\s*/\s*(\d+))?|(?<!\d)(\d+)\s*/\s*(\d+)(?:\s*(?:qavat|этаж))?", text, re.I)
+    amenities_match = re.search(r"(?:qulayliklar|mebel(?: va texnika)?|мебель|удобства)\s*[:—-]\s*([^\n]+)", text, re.I)
+    amenities = [part.strip()[:40] for part in re.split(r"[,;]", amenities_match.group(1)) if part.strip()] if amenities_match else []
     neighborhood_match = re.search(r"(?:mahalla|махалля|мфй)\s*[:—-]\s*([^\n,;]+)", text, re.I)
     contact_text = "\n".join(line for line in lines if re.search(r"aloqa|bog.?lanish|murojaat|kontakt|telefon|телефон|тел\.?|связь|contact", line, re.I))
     handles = re.findall(r"(?<![\w])@([A-Za-z][A-Za-z0-9_]{4,31})", contact_text)
@@ -117,6 +120,9 @@ def _extract(text: str, district_names: list[str], channel_username: str) -> dic
         "neighborhood": neighborhood_match.group(1).strip()[:120] if neighborhood_match else None,
         "rooms": int(rooms_match.group(1) or rooms_match.group(2)) if rooms_match else None,
         "area_m2": Decimal(area_match.group(1).replace(",", ".")) if area_match else None,
+        "floor": int(floor_match.group(1) or floor_match.group(3)) if floor_match else None,
+        "total_floors": int(floor_match.group(2) or floor_match.group(4)) if floor_match and (floor_match.group(2) or floor_match.group(4)) else None,
+        "amenities": amenities,
         "description": description,
         "username": handle,
         "phone": phone,
@@ -174,6 +180,13 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
         )
         if listing is None:
             listing = await session.scalar(select(Listing).where(Listing.channel_chat_id == channel_id, Listing.channel_message_id == message_id))
+        if listing is not None and body:
+            rented_words = [word.casefold() for word in options["channel_rented_keywords"]]
+            if any(word and word in body.casefold() for word in rented_words):
+                listing.status = "rented"
+                await session.commit()
+                await sync_listing_to_channel(bot, listing.id, settings.channel_target_id)
+                return
         if listing is None and group_id and not body:
             listing = await session.scalar(
                 select(Listing).where(
@@ -236,7 +249,7 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 contact_method="both" if parsed["username"] and parsed["phone"] else "telegram" if parsed["username"] or not parsed["phone"] else "phone",
                 phone_consent=bool(parsed["phone"]),
                 contact_phone=parsed["phone"],
-                **{key: parsed[key] for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "description")},
+                **{key: parsed[key] for key in ("title", "price", "currency", "deal_type", "property_type", "district", "neighborhood", "rooms", "area_m2", "floor", "total_floors", "amenities", "description")},
             )
             session.add(listing)
             await session.flush()
@@ -268,12 +281,12 @@ async def import_channel_post(bot: Bot, message: Message, settings: Settings, *,
                 )
                 if cover:
                     cover.file_id = message.photo[-1].file_id
-                    cover.telegram_source_message_id = message.message_id
+                    cover.telegram_source_message_id = message_id
                 else:
                     session.add(ListingPhoto(listing_id=listing.id, file_id=message.photo[-1].file_id, sort_order=0, is_cover=True, telegram_source_message_id=message_id))
         listing_id = listing.id
         if channel_post is None:
-            channel_post = ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message.message_id)
+            channel_post = ChannelPost(listing_id=listing.id, chat_id=channel_id, message_id=message_id)
             session.add(channel_post)
         channel_post.listing_id = listing.id
         channel_post.is_album_part = bool(group_id)
