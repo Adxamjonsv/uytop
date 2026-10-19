@@ -8,6 +8,15 @@ let districts = ["Yunusobod", "Chilonzor", "Mirobod", "Shayxontohur", "Yakkasaro
 let names = { apartment: "Kvartira", household: "Xonadon", house: "Uy", dormitory: "Yotoqxona", rent: "Ijara", sale: "Sotuv", daily: "Kunlik ijara" };
 let toastTimer;
 const photoCache = new Map();
+const iconPaths = {
+  home: '<path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/><path d="M9 21v-6h6v6"/>',
+  search: '<circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  heart: '<path d="M20.8 8.8c0 5.2-8.8 11-8.8 11s-8.8-5.8-8.8-11a4.7 4.7 0 0 1 8.8-2.4 4.7 4.7 0 0 1 8.8 2.4Z"/>',
+  user: '<circle cx="12" cy="8" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/>',
+  pin: '<path d="M20 10c0 5.3-8 11-8 11S4 15.3 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>'
+};
+function icon(name) { return `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || ""}</svg>`; }
 
 if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor?.("#f3efe6"); tg.setBackgroundColor?.("#f3efe6"); }
 
@@ -18,7 +27,12 @@ async function api(path, options = {}) {
   const response = await fetch(path, { ...options, headers: authHeaders(options.headers || {}) });
   let data = {};
   try { data = await response.json(); } catch (_) { /* empty response */ }
-  if (!response.ok) throw new Error(data.detail || "So‘rov bajarilmadi. Qayta urinib ko‘ring.");
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Telegram tasdiqlash ma’lumoti noto‘g‘ri. Mini App’ni yoping, @Boshpanagobot’da /start yuboring va botdagi Mini App tugmasidan qayta oching. Yana chiqsa, Railway’dagi BOT_TOKEN shu bot tokeni ekanini tekshiring.");
+    }
+    throw new Error(data.detail || "So‘rov bajarilmadi. Qayta urinib ko‘ring.");
+  }
   return data;
 }
 function setPage(page) {
@@ -35,10 +49,10 @@ function fail(error) { screen.innerHTML = `<div class="error-state">${escapeText
 
 function createListingCard(item) {
   const card = document.createElement("article"); card.className = "card"; card.dataset.id = item.id;
-  const photo = document.createElement("div"); photo.className = "card-photo photo-placeholder"; photo.textContent = "⌂";
+  const photo = document.createElement("div"); photo.className = "card-photo photo-placeholder"; photo.innerHTML = icon("home");
   if (item.photos?.[0]) loadPhoto(item.photos[0]).then(url => { const img = document.createElement("img"); img.className = "card-photo"; img.alt = item.title; img.src = url; photo.replaceWith(img); }).catch(() => {});
   const body = document.createElement("div"); body.className = "card-body";
-  const favorite = document.createElement("button"); favorite.className = "favorite-button"; favorite.textContent = item.is_favorite ? "♥" : "♡"; favorite.setAttribute("aria-label", "Sevimlilarga saqlash"); favorite.onclick = async event => { event.stopPropagation(); try { if (favorite.textContent === "♥") { await api(`/api/favorites/${item.id}`, { method: "DELETE" }); favorite.textContent = "♡"; } else { await api(`/api/favorites/${item.id}`, { method: "PUT" }); favorite.textContent = "♥"; } } catch (error) { toast(error.message); } };
+  const favorite = document.createElement("button"); favorite.className = "favorite-button"; favorite.innerHTML = icon("heart"); favorite.classList.toggle("is-favorite", Boolean(item.is_favorite)); favorite.setAttribute("aria-label", "Sevimlilarga saqlash"); favorite.onclick = async event => { event.stopPropagation(); try { if (favorite.classList.contains("is-favorite")) { await api(`/api/favorites/${item.id}`, { method: "DELETE" }); favorite.classList.remove("is-favorite"); } else { await api(`/api/favorites/${item.id}`, { method: "PUT" }); favorite.classList.add("is-favorite"); } } catch (error) { toast(error.message); } };
   const title = document.createElement("h3"); title.textContent = item.title;
   const location = document.createElement("p"); location.className = "location"; location.textContent = `⌖ ${item.district}${item.neighborhood ? ` · ${item.neighborhood}` : ""}`;
   const price = document.createElement("p"); price.className = "price"; price.textContent = `${formatPrice(item.price)} ${item.currency}${item.deal_type === "daily" ? "/kun" : item.deal_type === "rent" ? "/oy" : ""}`;
@@ -62,7 +76,7 @@ async function renderHome() {
     const eyebrow = document.createElement("div"); eyebrow.className = "eyebrow"; eyebrow.textContent = "UyTop · Toshkent";
     const title = document.createElement("h1"); title.textContent = "Maklersiz uy toping";
     const subtitle = document.createElement("p"); subtitle.textContent = "Egasi bilan to‘g‘ridan-to‘g‘ri bog‘laning.";
-    const searchButton = document.createElement("button"); searchButton.className = "searchbar"; searchButton.textContent = "⌕   Tuman yoki uy turini qidiring"; searchButton.onclick = () => setPage("search");
+    const searchButton = document.createElement("button"); searchButton.className = "searchbar"; searchButton.innerHTML = `${icon("search")}<span>Tuman yoki uy turini qidiring</span>`; searchButton.onclick = () => setPage("search");
     hero.append(eyebrow, title, subtitle, searchButton);
     const categoryHead = document.createElement("div"); categoryHead.className = "section-head"; categoryHead.innerHTML = "<h2>Uy turini tanlang</h2>";
     const chips = document.createElement("div"); chips.className = "chips";
