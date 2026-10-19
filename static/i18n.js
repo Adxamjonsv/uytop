@@ -49,23 +49,30 @@
     if (lang !== "ru") return value;
     return [...pairs].sort((a,b)=>b[0].length-a[0].length).reduce((text,[uz,ru])=>text.replaceAll(uz,ru),value);
   }
+  function normalize(value) {
+    return [...pairs].sort((a,b)=>b[1].length-a[1].length).reduce((text,[uz,ru])=>text.replaceAll(ru,uz),value);
+  }
   function apply(root = document.body) {
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     let node;
     while((node=walker.nextNode())) {
       if(!node.nodeValue.trim()) continue;
       let entry=originals.get(node);
-      if(!entry || node.nodeValue!==entry.rendered) { entry={base:node.nodeValue,rendered:node.nodeValue}; originals.set(node,entry); }
+      if(!entry) { entry={base:normalize(node.nodeValue),rendered:node.nodeValue}; originals.set(node,entry); }
+      else if(node.nodeValue!==entry.rendered) entry.base=normalize(node.nodeValue);
       const result=translate(entry.base);
-      if(result!==node.nodeValue) { entry.rendered=result; node.nodeValue=result; }
+      entry.rendered=result;
+      if(result!==node.nodeValue) node.nodeValue=result;
     }
     root.querySelectorAll?.("[placeholder],[aria-label],[title]").forEach(el=>{
       let map=attrs.get(el); if(!map){map={};attrs.set(el,map);}
       for(const key of ["placeholder","aria-label","title"]) if(el.hasAttribute(key)) {
         const value=el.getAttribute(key);
-        if(map[key]===undefined || value!==map[key+"Rendered"]) map[key]=value;
-        const result=translate(map[key]);
-        if(value!==result){map[key+"Rendered"]=result;el.setAttribute(key,result);}
+        if(map[key]===undefined) map[key]={base:normalize(value),rendered:value};
+        else if(value!==map[key].rendered) map[key].base=normalize(value);
+        const result=translate(map[key].base);
+        map[key].rendered=result;
+        if(value!==result) el.setAttribute(key,result);
       }
     });
     const button=document.getElementById("language-switch"); if(button) button.textContent=lang.toUpperCase();
@@ -80,3 +87,4 @@
   })).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   apply();
 })();
+
