@@ -5,7 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import joinedload
 
@@ -27,6 +27,21 @@ _reject_reason_for: dict[int, int] = {}
 @router.edited_channel_post()
 async def channel_listing_sync(message: Message, bot: Bot, settings: Settings) -> None:
     await import_channel_post(bot, message, settings)
+
+
+@router.message(F.forward_origin)
+async def forwarded_channel_listing(message: Message, bot: Bot, settings: Settings) -> None:
+    origin = message.forward_origin
+    if getattr(origin, "type", None) != "channel":
+        return
+    source_chat = getattr(origin, "chat", None)
+    source_message_id = getattr(origin, "message_id", None)
+    if source_chat is None or source_message_id is None:
+        return
+    await import_channel_post(
+        bot, message, settings, source_chat_id=source_chat.id,
+        source_message_id=source_message_id, source_username=source_chat.username,
+    )
 
 
 async def _telegram_user(tg) -> User:
@@ -91,6 +106,29 @@ async def _show_step(message: Message, step: int, photos: bool = False) -> None:
 @router.message(CommandStart())
 async def start(message: Message, settings: Settings) -> None:
     user = await _user(message)
+    payload = (message.text or "").split(maxsplit=1)
+    if len(payload) == 2 and payload[1].startswith("listing_") and payload[1][8:].isdigit():
+        listing_id = int(payload[1][8:])
+        async with SessionFactory() as session:
+            listing = await session.scalar(select(Listing).where(Listing.id == listing_id, Listing.status == "active"))
+            photo = await session.scalar(select(ListingPhoto).where(ListingPhoto.listing_id == listing_id).order_by(ListingPhoto.sort_order).limit(1)) if listing else None
+            owner = await session.get(User, listing.owner_id) if listing else None
+        if listing:
+            body = f"🏠 {listing.title}\\n📍 {listing.district}\\n💰 {listing.price:,.0f} {listing.currency}\\n🚪 {listing.rooms or '—'} xona · {listing.area_m2 or '—'} m²\\n\\n{listing.description[:1800]}"
+            contact = listing.contact_username or (owner.username if owner else None)
+            buttons = [[InlineKeyboardButton(text="✉️ Bog‘lanish", url=f"https://t.me/{contact.lstrip('@')}")]] if contact else []
+            if listing.source == "channel" and settings.channel_username:
+                channel_message = listing.channel_message_id or listing.telegram_channel_message_id
+                if channel_message:
+                    buttons.append([InlineKeyboardButton(text="📣 Kanalda ko‘rish", url=f"https://t.me/{settings.channel_username.lstrip('@')}/{channel_message}")])
+            markup = InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None
+            if photo:
+                await message.answer_photo(photo.file_id, caption=body[:1000], reply_markup=markup)
+            else:
+                await message.answer(body, reply_markup=markup)
+            return
+        await message.answer("Bu e’lon topilmadi yoki faol emas.")
+        return
     is_admin = bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)
     await message.answer(tr("welcome", user.language_code), reply_markup=main_menu(settings, user.language_code, is_admin))
 
