@@ -63,8 +63,10 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
         ]
         if listing.description.strip():
             lines.extend(["", listing.description.strip()[:350]])
+        if owner and owner.username:
+            lines.append(f"📩 Aloqa: @{owner.username}")
         if listing.phone_consent and listing.contact_phone:
-            lines.append(f"☎️ {listing.contact_phone}")
+            lines.append(f"☎️ Telefon: {listing.contact_phone}")
         lines.append(f"🆔 UyTop e’loni #{listing.id}")
         body = "\n".join(lines)[:1000]
 
@@ -105,7 +107,7 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
                     disable_web_page_preview=True,
                 )
                 listing.telegram_channel_media = False
-            listing.telegram_channel_id = destination
+            listing.telegram_channel_id = str(sent.chat.id)
             listing.telegram_channel_message_id = sent.message_id
             await session.commit()
         except Exception as exc:
