@@ -95,4 +95,5 @@ class ListingOut(BaseModel):
     amenities: list[str]
     created_at: Any
     photos: list[str] = []
+    channel_url: str | None = None
 
