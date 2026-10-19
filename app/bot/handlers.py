@@ -371,7 +371,16 @@ async def draft_text(message: Message, settings: Settings) -> None:
     async with SessionFactory() as session:
         draft = await _get_draft(user.id, session)
         if draft is None:
-            await message.answer("Menyudan kerakli bo‘limni tanlang.", reply_markup=main_menu(settings, getattr(message, "language_code", "uz"), bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)))
+            payment_listing = await _latest_unpaid_listing(user.id, session)
+            if payment_listing is None:
+                await message.answer("Menyudan kerakli bo‘limni tanlang.", reply_markup=main_menu(settings, getattr(message, "language_code", "uz"), bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)))
+                return
+            payment_listing.payment_status = "submitted"
+            payment_listing.payment_reference = (message.text or "").strip()[:160] or None
+            payment_listing.payment_proof_file_id = None
+            await session.commit()
+            await _send_payment_review(message.bot, settings, payment_listing.id, user.full_name, payment_listing.title, reference=payment_listing.payment_reference)
+            await message.answer(f"🧾 To‘lov ma’lumoti adminlarga yuborildi. E’lon #{payment_listing.id} to‘lov tasdig‘ini kutmoqda.")
             return
         values = [part.strip() for part in (message.text or "").split("|")]
         data = dict(draft.data)
@@ -431,24 +440,37 @@ def _deal_code(value: str) -> str:
 
 
 @router.message(F.photo)
-async def draft_photo(message: Message) -> None:
+async def draft_photo(message: Message, settings: Settings) -> None:
     user = await _user(message)
     file_id = message.photo[-1].file_id
+    payment_data = None
     async with SessionFactory() as session:
         draft = await _get_draft(user.id, session)
-        if draft is None or draft.current_step != 5:
+        if draft is not None and draft.current_step == 5:
+            data = dict(draft.data)
+            photos = list(data.get("photos", []))
+            if len(photos) >= 12:
+                await message.answer("Ko‘pi bilan 12 ta rasm yuborish mumkin.")
+                return
+            photos.append(file_id)
+            data["photos"] = photos
+            draft.data = data
+            await session.commit()
+            await message.answer(f"Rasm saqlandi ({len(photos)}/12). Yana rasm yuboring yoki davom etish tugmasini bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
             return
-        data = dict(draft.data)
-        photos = list(data.get("photos", []))
-        if len(photos) >= 12:
-            await message.answer("Ko‘pi bilan 12 ta rasm yuborish mumkin.")
-            return
-        photos.append(file_id)
-        data["photos"] = photos
-        draft.data = data
-        await session.commit()
-    await message.answer(f"Rasm saqlandi ({len(photos)}/12). Yana rasm yuboring yoki tugmani bosing.", reply_markup=photos_keyboard(getattr(message, "language_code", "uz")))
 
+        listing = await _latest_unpaid_listing(user.id, session)
+        if listing is None:
+            return
+        listing.payment_status = "submitted"
+        listing.payment_proof_file_id = file_id
+        listing.payment_reference = None
+        payment_data = (listing.id, listing.title, user.full_name)
+        await session.commit()
+
+    listing_id, title, owner_name = payment_data
+    await _send_payment_review(message.bot, settings, listing_id, owner_name, title, proof_file_id=file_id)
+    await message.answer(f"🧾 To‘lov cheki adminlarga yuborildi. E’lon #{listing_id} tasdiqni kutmoqda.")
 
 @router.callback_query(F.data == "draft:photos_done")
 async def photos_done(callback: CallbackQuery) -> None:
@@ -575,40 +597,118 @@ async def photo_text_done(message: Message) -> None:
     await message.answer("Rasm ixtiyoriy. Pastdagi davom etish tugmasini bosing.", reply_markup=photos_keyboard())
 
 
+@router.callback_query(F.data.startswith("payment:approve:"))
+async def approve_listing_payment(callback: CallbackQuery, settings: Settings) -> None:
+    if callback.from_user.id not in settings.admin_telegram_id_list:
+        await callback.answer("Bu amal faqat moderatorlar uchun.", show_alert=True)
+        return
+    listing_id = int(callback.data.rsplit(":", 1)[1])
+    activated = False
+    owner_telegram_id = None
+    async with SessionFactory() as session:
+        listing = await session.get(Listing, listing_id)
+        if not listing or listing.status != "pending" or listing.payment_status == "paid":
+            await callback.answer("To‘lov kutilayotgan e’lon topilmadi.", show_alert=True)
+            return
+        admin = await session.scalar(select(Admin).where(Admin.telegram_id == callback.from_user.id))
+        listing.payment_status = "paid"
+        listing.payment_verified_by = admin.id if admin else None
+        activated = listing.admin_approved
+        if activated:
+            listing.status = "active"
+        owner = await session.get(User, listing.owner_id)
+        owner_telegram_id = owner.telegram_id if owner else None
+        await session.commit()
+
+    await callback.answer("To‘lov tasdiqlandi.")
+    await callback.message.edit_reply_markup(reply_markup=None)
+    if owner_telegram_id:
+        status_text = (
+            f"✅ To‘lov va admin tekshiruvi tasdiqlandi. E’lon #{listing_id} bot qidiruvida va kanalda chiqdi."
+            if activated else
+            f"✅ To‘lov tasdiqlandi. E’lon #{listing_id} admin moderatsiya tasdig‘ini kutmoqda."
+        )
+        try:
+            await callback.bot.send_message(owner_telegram_id, status_text)
+        except Exception:
+            pass
+    if activated:
+        await sync_listing_to_channel(callback.bot, listing_id, settings.telegram_channel_id)
+        from app.services.notifications import notify_saved_search_matches
+        await notify_saved_search_matches(callback.bot, listing_id)
+
+
+@router.callback_query(F.data.startswith("payment:reject:"))
+async def request_new_payment_proof(callback: CallbackQuery, settings: Settings) -> None:
+    if callback.from_user.id not in settings.admin_telegram_id_list:
+        await callback.answer("Bu amal faqat moderatorlar uchun.", show_alert=True)
+        return
+    listing_id = int(callback.data.rsplit(":", 1)[1])
+    owner_telegram_id = None
+    async with SessionFactory() as session:
+        listing = await session.get(Listing, listing_id)
+        if not listing or listing.payment_status == "paid":
+            await callback.answer("To‘lov holatini o‘zgartirib bo‘lmaydi.", show_alert=True)
+            return
+        listing.payment_status = "unpaid"
+        listing.payment_reference = None
+        listing.payment_proof_file_id = None
+        owner = await session.get(User, listing.owner_id)
+        owner_telegram_id = owner.telegram_id if owner else None
+        await session.commit()
+    await callback.answer("Yangi to‘lov tasdig‘i kutiladi.")
+    await callback.message.edit_reply_markup(reply_markup=None)
+    if owner_telegram_id:
+        try:
+            await callback.bot.send_message(owner_telegram_id, f"To‘lov hali tasdiqlanmadi. Admin bilan to‘lovni kelishib, chek yoki tranzaksiya raqamini qayta yuboring. E’lon #{listing_id}.")
+        except Exception:
+            pass
+
+
 @router.callback_query(F.data.startswith("mod:approve:"))
 async def approve_listing(callback: CallbackQuery, settings: Settings) -> None:
     if callback.from_user.id not in settings.admin_telegram_id_list:
         await callback.answer("Bu amal faqat moderatorlar uchun.", show_alert=True)
         return
-    await callback.answer()
     listing_id = int(callback.data.rsplit(":", 1)[1])
-    approved = False
+    activated = False
+    owner_telegram_id = None
     async with SessionFactory() as session:
         admin = await session.scalar(select(Admin).where(Admin.telegram_id == callback.from_user.id))
         listing = await session.get(Listing, listing_id)
-        if listing and listing.status == "pending":
+        if not listing or listing.status != "pending":
+            await callback.answer("Kutilayotgan e’lon topilmadi.", show_alert=True)
+            return
+        listing.admin_approved = True
+        if admin:
+            listing.moderated_by = admin.id
+            session.add(ModerationLog(listing_id=listing.id, moderator_id=admin.id, action="approved"))
+            session.add(AdminAuditLog(admin_id=admin.id, action="listing_approved", entity_type="listing", entity_id=str(listing.id), details={"payment_status": listing.payment_status}))
+        activated = listing.payment_status == "paid"
+        if activated:
             listing.status = "active"
-            if admin: listing.moderated_by = admin.id
-            if admin:
-                session.add(ModerationLog(listing_id=listing.id, moderator_id=admin.id, action="approved"))
-                session.add(AdminAuditLog(admin_id=admin.id, action="listing_approved", entity_type="listing", entity_id=str(listing.id), details={}))
-            notification = Notification(user_id=listing.owner_id, notification_type="listing_approved", payload={"listing_id": listing.id}, delivery_status="queued")
-            session.add(notification)
-            await session.commit()
-            await callback.message.edit_text(f"✅ #{listing_id} e’lon tasdiqlandi.")
-            owner = await session.get(User, listing.owner_id)
-            try:
-                await callback.bot.send_message(owner.telegram_id, f"E’loningiz tasdiqlandi va qidiruvda ko‘rinmoqda: #{listing_id}")
-                notification.delivery_status, notification.sent_at = "sent", datetime.now(timezone.utc)
-            except Exception:
-                notification.delivery_status = "failed"
-            await session.commit()
-            approved = True
-    if approved:
+        owner = await session.get(User, listing.owner_id)
+        owner_telegram_id = owner.telegram_id if owner else None
+        if activated:
+            session.add(Notification(user_id=listing.owner_id, notification_type="listing_approved", payload={"listing_id": listing.id}, delivery_status="queued"))
+        await session.commit()
+
+    await callback.answer("E’lon tasdiqlandi." if activated else "E’lon ma’qullandi; to‘lov tasdig‘i kutilmoqda.")
+    await callback.message.edit_reply_markup(reply_markup=None)
+    if owner_telegram_id:
+        status_text = (
+            f"✅ E’lon #{listing_id} admin tomonidan tasdiqlandi va qidiruvda hamda kanalda chiqdi."
+            if activated else
+            f"✅ E’lon #{listing_id} admin tomonidan ma’qullandi. To‘lov tasdiqlangach bot va kanalda chiqadi."
+        )
+        try:
+            await callback.bot.send_message(owner_telegram_id, status_text)
+        except Exception:
+            pass
+    if activated:
         await sync_listing_to_channel(callback.bot, listing_id, settings.telegram_channel_id)
         from app.services.notifications import notify_saved_search_matches
         await notify_saved_search_matches(callback.bot, listing_id)
-
 
 @router.callback_query(F.data.startswith("mod:reject:"))
 async def request_rejection_reason(callback: CallbackQuery, settings: Settings) -> None:
