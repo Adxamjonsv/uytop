@@ -25,6 +25,7 @@ Copy-Item .env.example .env
 - `ADMIN_TELEGRAM_IDS`: bot moderatsiya xabarlari oladigan va panelga kira oladigan raqamli Telegram ID’lar, vergul bilan ajratiladi.
 - `SUPERADMIN_TELEGRAM_IDS`: panelda foydalanuvchilarni bloklash, xabar yuborish va sozlamalarni o‘zgartirish huquqi beriladigan admin ID’lar. Bu ID’lar `ADMIN_TELEGRAM_IDS` ichida ham bo‘lishi kerak.
 - `SUPPORT_USERNAME`: mijozlar yordam so‘rashi uchun Telegram username, masalan `YordamchiIsmi`; `@UyTopSupport` kodda qattiq yozilmagan.
+- `TELEGRAM_CHANNEL_ID`: kanal username’i, masalan `@Boshpanago` (yoki `-100...` channel ID). Bot shu kanalda admin bo‘lishi va xabar yuborish, tahrirlash hamda o‘chirish huquqlariga ega bo‘lishi kerak.
 - Lokal rejim uchun `MODE=polling`; `WEBHOOK_BASE_URL` va `MINI_APP_URL` lokal HTTP’da bo‘sh qolishi mumkin.
 
 `DATABASE_URL` dan `postgresql://` yoki Railway `postgres://` berilsa ham sozlama uni `postgresql+asyncpg://` ga o‘giradi.
@@ -38,7 +39,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Brauzerda `http://127.0.0.1:8000/health` ni oching. Mini App Telegram ichidan ochilganda `initData` talab qiladi; oddiy brauzerda haqiqiy foydalanuvchi ma’lumotlari so‘ralmaydi. Admin panel `http://127.0.0.1:8000/admin/login` manzilida.
 
-Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
+Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi. Kanal postida sarlavha, Toshkent tumani va `Narx: 5 000 000 UZS` (yoki `Цена: 5 000 000 UZS`) kabi narx satri bo‘lsa, bot uni UyTop qidiruviga import qiladi va asl kanal postini UyTop shablonida tahrirlaydi. Rasmlar saqlanadi; albomdagi rasmlar ham bir e’longa ulanadi. Bot/mini-app orqali moderator tasdiqlagan e’lonlar kanalga chiqadi, arxivlangan yoki band qilingan e’lonlar esa kanaldan olinadi. Zarur ma’lumot topilmagan kanal posti adminlarga ogohlantirish yuboradi.
 
 ## BotFather sozlamasi
 
@@ -84,13 +85,14 @@ git push -u origin main
 | `ADMIN_PASSWORD` | Kuchli, kamida 12 belgili parol |
 | `ADMIN_TELEGRAM_IDS` | Moderator va administrator Telegram ID’lari |
 | `SUPERADMIN_TELEGRAM_IDS` | To‘liq admin huquqi kerak bo‘lgan ID’lar; shu ID’ni `ADMIN_TELEGRAM_IDS` ga ham kiriting |
-| `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` ( `@` belgisisiz yoki bilan) |
+| `SUPPORT_USERNAME` | Siz tanlagan yordamchi username, masalan `YordamchiIsmi` |
+| `TELEGRAM_CHANNEL_ID` | `@Boshpanago` yoki kanalning `-100...` ID’si |
 | `MODE` | `webhook` |
 | `WEBHOOK_BASE_URL` | Railway yaratgan `https://...` domeni |
 | `WEBHOOK_SECRET` | Kompyuteringizda buyruq chiqargan tasodifiy qiymatning o‘zi (buyruq matni emas) |
 | `MINI_APP_URL` | `WEBHOOK_BASE_URL` bilan bir xil, oxiri `/` bilan |
 
-> **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.\n\n3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang.
+> **WEBHOOK_SECRET yaratish:** Windows PowerShell’ni kompyuteringizda ochib `python -c "import secrets; print(secrets.token_urlsafe(32))"` buyrug‘ini bajaring. Chiqadigan tasodifiy matnni nusxalab Railway’dagi `WEBHOOK_SECRET` qiymatiga qo‘ying. Railway maydoniga `python -c ...` buyrug‘ining o‘zini kiritmang; qo‘shtirnoqlarni ham qo‘shmang. `python` topilmasa, `py -c "import secrets; print(secrets.token_urlsafe(32))"` dan foydalaning.\n\n3. Railway domeni yaratilganidan keyin shu HTTPS domenni `WEBHOOK_BASE_URL` va `MINI_APP_URL` ga kiriting; BotFather Mini App’ida ham shu manzilni belgilang. Botni `@Boshpanago` kanaliga admin qiling va post yuborish, tahrirlash hamda o‘chirish ruxsatlarini yoqing.
 4. `railway.toml` deploy paytida `alembic upgrade head` bajarib, so‘ng Uvicorn’ni Railway `PORT` qiymatida ochadi. Health check `/health` manzilini tekshiradi.
 5. Birinchi deploy `ADMIN_USERNAME` va `ADMIN_PASSWORD` asosida web superadmin yaratadi. `SUPERADMIN_TELEGRAM_IDS` dagi bot admini to‘liq huquq bilan kiradi; oddiy `ADMIN_TELEGRAM_IDS` foydalanuvchisi moderator bo‘ladi. Kirish manzili: `https://SIZNING-DOMEN/admin/login`.
 
