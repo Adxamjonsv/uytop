@@ -3,7 +3,7 @@
 from functools import lru_cache
 import re
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     admin_telegram_ids: str = ""
     superadmin_telegram_ids: str = ""
     support_username: str = ""
-    telegram_channel_id: str = ""
+    telegram_channel_id: str = Field(default="", validation_alias=AliasChoices("CHANNEL_ID", "TELEGRAM_CHANNEL_ID"))
+    channel_username: str = "Boshpanago"
     listing_payment_username: str = "Adxamjonsv"
     mini_app_url: str = ""
     mode: str = "polling"
@@ -59,6 +60,14 @@ class Settings(BaseSettings):
         if secret and not re.fullmatch(r"[A-Za-z0-9_-]{1,256}", secret):
             raise ValueError("WEBHOOK_SECRET noto‘g‘ri. Buyruqni Railway’ga qo‘ymang: uni kompyuteringizda ishga tushirib, faqat hosil bo‘lgan qiymatni Railway Variables maydoniga kiriting (README’dagi ko‘rsatmaga qarang). Ruxsat etilgan belgilar: A-Z, a-z, 0-9, _ va -")
         return value
+
+    @property
+    def channel_target_id(self) -> str:
+        configured = self.telegram_channel_id.strip()
+        if configured:
+            return configured
+        username = self.channel_username.strip().lstrip("@")
+        return f"@{username}" if username else ""
 
     @property
     def admin_telegram_id_list(self) -> list[int]:
