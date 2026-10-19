@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pwdlib import PasswordHash
 from sqlalchemy import desc, func, select
@@ -16,6 +16,7 @@ from starlette.status import HTTP_303_SEE_OTHER
 
 from app.db import get_session
 from app.models import Admin, AdminAuditLog, Listing, ModerationLog, Notification, PlatformSetting, Report, User
+from app.security import validate_telegram_init_data
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 password_hasher = PasswordHash.recommended()
@@ -65,6 +66,34 @@ async def login_page(request: Request):
     csrf = secrets.token_urlsafe(32)
     response = _templates(request).TemplateResponse(request=request, name="login.html", context={"csrf": csrf, "error": None})
     response.set_cookie("uytop_csrf", csrf, httponly=False, secure=_secure_cookie(request), samesite="strict", max_age=1800)
+    return response
+
+
+@router.get("/telegram-login", response_class=HTMLResponse)
+async def telegram_login_page():
+    return HTMLResponse("""<!doctype html><html lang="uz"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UyTop admin</title><body style="font:16px sans-serif;padding:2rem"><p id="status">Telegram orqali administrator tekshiruvi...</p>
+<script src="https://telegram.org/js/telegram-web-app.js"></script><script>
+(async()=>{const status=document.getElementById("status");const tg=window.Telegram?.WebApp;tg?.ready();
+if(!tg?.initData){status.textContent="Admin panelni bot ichidagi Admin panel tugmasidan oching.";return;}
+try{const r=await fetch("/admin/telegram-auth",{method:"POST",headers:{Authorization:"tma "+tg.initData}});
+const data=await r.json();if(!r.ok)throw new Error(data.detail||"Kirish rad etildi.");location.replace(data.redirect||"/admin");
+}catch(e){status.textContent=e.message;}})();
+</script></body></html>""")
+
+
+@router.post("/telegram-auth")
+async def telegram_auth(request: Request, session: AsyncSession = Depends(get_session)):
+    authorization = request.headers.get("Authorization", "")
+    init_data = authorization[4:] if authorization.lower().startswith("tma ") else ""
+    signed_user = validate_telegram_init_data(init_data, request.app.state.settings)
+    admin = await session.scalar(select(Admin).where(Admin.telegram_id == signed_user["id"], Admin.is_active.is_(True)))
+    if admin is None:
+        raise HTTPException(403, "Bu Telegram akkaunti administratorlar ro‘yxatida yo‘q.")
+    response = JSONResponse({"ok": True, "redirect": "/admin"})
+    response.set_cookie("uytop_admin", _serializer(request).dumps(admin.id), httponly=True, secure=_secure_cookie(request), samesite="lax", max_age=request.app.state.settings.admin_session_max_age_seconds, path="/")
+    csrf_token = secrets.token_urlsafe(32)
+    response.set_cookie("uytop_csrf", csrf_token, httponly=False, secure=_secure_cookie(request), samesite="strict", max_age=1800, path="/")
     return response
 
 
