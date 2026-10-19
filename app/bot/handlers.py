@@ -9,8 +9,9 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import joinedload
 
-from app.bot.keyboards import DISTRICTS, draft_keyboard, main_menu, photos_keyboard, district_keyboard, property_keyboard
+from app.bot.keyboards import DISTRICTS, draft_keyboard, main_menu, photos_keyboard, district_keyboard, property_keyboard, language_keyboard
 from app.config import Settings
+from app.bot.i18n import tr, language_code
 from app.db import SessionFactory
 from app.models import Admin, AdminAuditLog, Favorite, Inquiry, Listing, ListingDraft, ListingPhoto, ModerationLog, Notification, User
 from app.services.catalog import get_catalogs
@@ -25,7 +26,7 @@ async def _telegram_user(tg) -> User:
     async with SessionFactory() as session:
         user = await session.scalar(select(User).where(User.telegram_id == tg.id))
         if user is None:
-            user = User(telegram_id=tg.id, username=tg.username, full_name=tg.full_name[:160])
+            user = User(telegram_id=tg.id, username=tg.username, full_name=tg.full_name[:160], language_code=language_code(tg.language_code))
             session.add(user)
         else:
             user.username, user.full_name, user.last_seen_at = tg.username, tg.full_name[:160], datetime.now(timezone.utc)
@@ -80,14 +81,63 @@ async def _show_step(message: Message, step: int, photos: bool = False) -> None:
 
 @router.message(CommandStart())
 async def start(message: Message, settings: Settings) -> None:
-    await _user(message)
-    await message.answer("Assalomu alaykum! UyTop — maklersiz kvartira ijarasi platformasi.\n\nUy qidiring yoki e’loningizni joylashtiring.", reply_markup=main_menu(settings))
+    user = await _user(message)
+    is_admin = bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)
+    await message.answer(tr("welcome", user.language_code), reply_markup=main_menu(settings, user.language_code, is_admin))
+
+
+@router.message(Command("language"))
+@router.message(Command("lang"))
+@router.message(F.text == "🌐 Til / Язык")
+async def choose_language(message: Message, settings: Settings) -> None:
+    user = await _user(message)
+    await message.answer(tr("language_prompt", user.language_code), reply_markup=language_keyboard())
+
+
+@router.callback_query(F.data.startswith("language:"))
+async def save_language(callback: CallbackQuery, settings: Settings) -> None:
+    selected = callback.data.split(":", 1)[1]
+    if selected not in {"uz", "ru"}:
+        await callback.answer("Til tanlovi noto‘g‘ri.", show_alert=True)
+        return
+    async with SessionFactory() as session:
+        user = await session.scalar(select(User).where(User.telegram_id == callback.from_user.id))
+        if user is None:
+            await callback.answer("Avval /start buyrug‘ini yuboring.", show_alert=True)
+            return
+        user.language_code = selected
+        await session.commit()
+    await callback.answer()
+    is_admin = callback.from_user.id in settings.admin_telegram_id_list
+    await callback.message.answer(tr("language_saved", selected), reply_markup=main_menu(settings, selected, is_admin))
+
+
+@router.message(Command("admin"))
+async def admin_panel_link(message: Message, settings: Settings) -> None:
+    if not message.from_user or message.from_user.id not in settings.admin_telegram_id_list:
+        user = await _user(message)
+        await message.answer(tr("admin_only", user.language_code))
+        return
+    if not settings.mini_app_url.startswith("https://"):
+        await message.answer(tr("admin_unconfigured"))
+        return
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    language = (await _user(message)).language_code
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=tr("admin_button", language), web_app=WebAppInfo(url=settings.mini_app_url.rstrip("/") + "/admin/telegram-login"))]])
+    await message.answer(tr("admin_button", language), reply_markup=keyboard)
 
 
 @router.message(Command("help"))
 @router.message(F.text == "❔ Yordam")
+@router.message(F.text == "❔ Помощь")
 async def help_command(message: Message, settings: Settings) -> None:
-    await message.answer("UyTop’da uy egasi e’lonini moderator tasdiqlaganidan keyin ko‘rasiz. Shubhali e’lonni shikoyat qiling. Yordam uchun: @UyTopSupport", reply_markup=main_menu(settings))
+    user = await _user(message)
+    support = settings.support_username.strip().lstrip("@")
+    keyboard = None
+    if support:
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=tr("support_button", user.language_code), url=f"https://t.me/{support}")]])
+    await message.answer(tr("help", user.language_code), reply_markup=keyboard or main_menu(settings, user.language_code, bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)))
 
 
 @router.message(Command("id"))
@@ -98,6 +148,7 @@ async def telegram_id_command(message: Message) -> None:
 
 @router.message(Command("new"))
 @router.message(F.text == "➕ E’lon joylashtirish")
+@router.message(F.text == "➕ Разместить объявление")
 async def new_listing(message: Message) -> None:
     user = await _user(message)
     async with SessionFactory() as session:
@@ -112,6 +163,7 @@ async def new_listing(message: Message) -> None:
 
 @router.message(Command("search"))
 @router.message(F.text == "🔎 Uy qidirish")
+@router.message(F.text == "🔎 Найти жильё")
 async def search_start(message: Message) -> None:
     await _user(message)
     catalogs = await get_catalogs()
@@ -119,6 +171,7 @@ async def search_start(message: Message) -> None:
 
 
 @router.message(F.text == "📍 Hududlar")
+@router.message(F.text == "📍 Районы")
 async def districts(message: Message) -> None:
     catalogs = await get_catalogs()
     await message.answer("Toshkent tumanlari:", reply_markup=district_keyboard("sd", catalogs["districts"]))
@@ -276,6 +329,7 @@ async def confirm_phone(callback: CallbackQuery) -> None:
 
 @router.message(Command("myads"))
 @router.message(F.text == "👤 Profil")
+@router.message(F.text == "👤 Профиль")
 async def my_ads(message: Message) -> None:
     user = await _user(message)
     async with SessionFactory() as session:
@@ -288,6 +342,7 @@ async def my_ads(message: Message) -> None:
 
 
 @router.message(F.text == "💚 Sevimlilar")
+@router.message(F.text == "💚 Избранное")
 async def favorites(message: Message) -> None:
     user = await _user(message)
     async with SessionFactory() as session:
