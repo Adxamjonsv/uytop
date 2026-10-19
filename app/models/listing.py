@@ -13,8 +13,8 @@ from app.models.base import Base, TimestampMixin
 class Listing(TimestampMixin, Base):
     __tablename__ = "listings"
     __table_args__ = (
-        CheckConstraint("deal_type IN ('rent', 'sale', 'daily')", name="ck_listings_deal_type"),
-        CheckConstraint("property_type IN ('apartment', 'household', 'house', 'dormitory')", name="ck_listings_property_type"),
+        CheckConstraint("deal_type IN ('rent', 'sale', 'daily', 'unknown')", name="ck_listings_deal_type"),
+        CheckConstraint("property_type IN ('apartment', 'household', 'house', 'dormitory', 'unknown')", name="ck_listings_property_type"),
         CheckConstraint("status IN ('draft', 'pending', 'active', 'rejected', 'rented', 'archived')", name="ck_listings_status"),
         CheckConstraint("payment_status IN ('unpaid', 'submitted', 'paid')", name="ck_listings_payment_status"),
         CheckConstraint("source IN ('bot', 'channel')", name="ck_listings_source"),
