@@ -1,6 +1,7 @@
 """Publish active listings to the configured Telegram channel and withdraw inactive posts."""
 
 import logging
+import re
 
 from aiogram import Bot
 from sqlalchemy import select
@@ -10,6 +11,36 @@ from app.models import Listing, ListingPhoto, User
 
 logger = logging.getLogger(__name__)
 _DEAL_LABELS = {"rent": "Ijara", "sale": "Sotuv", "daily": "Kunlik ijara"}
+
+
+_DESCRIPTION_FIELDS = {
+    "metro": {"metro", "метро", "станция метро"},
+    "building": {"dom turi", "bino turi", "uy turi", "тип дома", "дом"},
+    "repair": {"ta'mir darajasi", "tamir darajasi", "ta’mir darajasi", "ремонт", "уровень ремонта"},
+    "audience": {"kimlarga", "кому", "для кого"},
+    "payment": {"to'lov turi", "tolov turi", "тўлов тури", "тип оплаты", "оплата"},
+    "description": {"tavsif", "izoh", "description", "описание"},
+    "amenities": {"mebel va texnika", "mebel", "qulayliklar", "мебель и техника", "удобства"},
+    "floor": {"qavat", "этаж"},
+}
+
+
+def _description_fields(description: str) -> tuple[dict[str, str], str]:
+    values: dict[str, str] = {}
+    remaining: list[str] = []
+    for line in description.splitlines():
+        cleaned = re.sub(r"^[^\wА-Яа-яЁё]+", "", line).strip()
+        match = re.match(r"^([^:—-]{2,48})\s*[:—-]\s*(.*)$", cleaned)
+        if not match:
+            remaining.append(line)
+            continue
+        label = match.group(1).strip().casefold().replace("’", "'").replace("ʻ", "'")
+        field = next((name for name, aliases in _DESCRIPTION_FIELDS.items() if label in {alias.casefold().replace("’", "'").replace("ʻ", "'") for alias in aliases}), None)
+        if field is None:
+            remaining.append(line)
+        else:
+            values[field] = match.group(2).strip()
+    return values, "\n".join(remaining).strip()
 
 
 def channel_target(value: str) -> str:
@@ -64,21 +95,42 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
             .order_by(ListingPhoto.sort_order)
             .limit(1)
         )
-        place = listing.district + (f", {listing.neighborhood}" if listing.neighborhood else "")
+        details, description = _description_fields(listing.description or "")
+        property_labels = {"apartment": "Kvartira", "household": "Xonadon", "house": "Uy", "dormitory": "Yotoqxona"}
+        period = " / oy" if listing.deal_type == "rent" else " / kun" if listing.deal_type == "daily" else ""
+        price = f"{listing.price:,.0f} {listing.currency}{period}"
+        floor = details.get("floor") or (
+            f"{listing.floor} / {listing.total_floors}" if listing.floor is not None and listing.total_floors is not None
+            else str(listing.floor) if listing.floor is not None else "—"
+        )
+        amenities = list(listing.amenities or [])
+        if not amenities and details.get("amenities"):
+            amenities = [item.strip(" •·-") for item in re.split(r"[,;\n]", details["amenities"]) if item.strip(" •·-")]
         lines = [
             f"🏠 {listing.title}",
-            f"💼 {_DEAL_LABELS.get(listing.deal_type, listing.deal_type)} · {listing.property_type}",
-            f"📍 {place}",
-            f"💰 {listing.price:,.0f} {listing.currency}",
-            f"🚪 {listing.rooms if listing.rooms is not None else '—'} xona · "
-            f"📐 {f'{listing.area_m2:g}' if listing.area_m2 is not None else '—'} m²",
+            f"💰 {price}",
+            "🛡 Maklersiz · Uy egasidan",
+            f"📍 Shahar: {listing.region or 'Toshkent'}",
+            f"🏙 Tuman: {listing.district}",
+            f"🚇 Metro: {details.get('metro', '—')}",
+            f"🏢 Uy turi: {details.get('building', property_labels.get(listing.property_type, listing.property_type))}",
+            f"↗️ Qavat: {floor}",
+            f"📐 Maydon: {f'{listing.area_m2:g}' if listing.area_m2 is not None else '—'} m²",
+            f"🛏 Xonalar soni: {listing.rooms if listing.rooms is not None else '—'} xona",
+            f"🛠 Ta’mir darajasi: {details.get('repair', '—')}",
+            f"👥 Kimlarga: {details.get('audience', '—')}",
+            f"💳 To‘lov turi: {details.get('payment', '—')}",
+            "",
+            "📝 Tavsif:",
+            description[:350] if description else "—",
+            "",
+            "🛋 Mebel va texnika:",
+            ", ".join(amenities[:20]) if amenities else "—",
         ]
-        if listing.description.strip():
-            lines.extend(["", listing.description.strip()[:350]])
-        if owner and owner.username:
-            lines.append(f"📩 Aloqa: @{owner.username}")
         if listing.phone_consent and listing.contact_phone:
             lines.append(f"☎️ Telefon: {listing.contact_phone}")
+        if owner and owner.username:
+            lines.append(f"✈️ Telegram: @{owner.username}")
         lines.append(f"🆔 UyTop e’loni #{listing.id}")
         body = "\n".join(lines)[:1000]
 
