@@ -509,18 +509,20 @@ async def draft_cancel(callback: CallbackQuery) -> None:
     await callback.message.answer("Qoralama saqlandi. Keyin «E’lon joylashtirish»ni bosing.")
 
 
-def _payment_review_keyboard(listing_id: int):
+def _payment_review_keyboard(listing_id: int, payment_actions: bool = True, moderation_actions: bool = True):
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [
+    rows = []
+    if payment_actions:
+        rows.append([
             InlineKeyboardButton(text="💳 To‘lovni tasdiqlash", callback_data=f"payment:approve:{listing_id}"),
             InlineKeyboardButton(text="↩️ To‘lovni kutish", callback_data=f"payment:reject:{listing_id}"),
-        ],
-        [
+        ])
+    if moderation_actions:
+        rows.append([
             InlineKeyboardButton(text="✅ E’lonni ma’qullash", callback_data=f"mod:approve:{listing_id}"),
             InlineKeyboardButton(text="❌ E’lonni rad etish", callback_data=f"mod:reject:{listing_id}"),
-        ],
-    ])
+        ])
+    return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
 async def _send_payment_review(bot: Bot, settings: Settings, listing_id: int, owner_name: str, title: str, proof_file_id: str | None = None, reference: str | None = None) -> None:
@@ -597,6 +599,7 @@ async def approve_listing_payment(callback: CallbackQuery, settings: Settings) -
         return
     listing_id = int(callback.data.rsplit(":", 1)[1])
     activated = False
+    moderation_pending = True
     owner_telegram_id = None
     async with SessionFactory() as session:
         listing = await session.get(Listing, listing_id)
@@ -607,6 +610,7 @@ async def approve_listing_payment(callback: CallbackQuery, settings: Settings) -
         listing.payment_status = "paid"
         listing.payment_verified_by = admin.id if admin else None
         activated = listing.admin_approved
+        moderation_pending = not listing.admin_approved
         if activated:
             listing.status = "active"
         owner = await session.get(User, listing.owner_id)
@@ -614,7 +618,9 @@ async def approve_listing_payment(callback: CallbackQuery, settings: Settings) -
         await session.commit()
 
     await callback.answer("To‘lov tasdiqlandi.")
-    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.edit_reply_markup(
+        reply_markup=None if activated else _payment_review_keyboard(listing_id, payment_actions=False, moderation_actions=moderation_pending)
+    )
     if owner_telegram_id:
         status_text = (
             f"✅ To‘lov va admin tekshiruvi tasdiqlandi. E’lon #{listing_id} bot qidiruvida va kanalda chiqdi."
@@ -638,6 +644,7 @@ async def request_new_payment_proof(callback: CallbackQuery, settings: Settings)
         return
     listing_id = int(callback.data.rsplit(":", 1)[1])
     owner_telegram_id = None
+    moderation_pending = True
     async with SessionFactory() as session:
         listing = await session.get(Listing, listing_id)
         if not listing or listing.payment_status == "paid":
@@ -646,11 +653,14 @@ async def request_new_payment_proof(callback: CallbackQuery, settings: Settings)
         listing.payment_status = "unpaid"
         listing.payment_reference = None
         listing.payment_proof_file_id = None
+        moderation_pending = not listing.admin_approved
         owner = await session.get(User, listing.owner_id)
         owner_telegram_id = owner.telegram_id if owner else None
         await session.commit()
     await callback.answer("Yangi to‘lov tasdig‘i kutiladi.")
-    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.edit_reply_markup(
+        reply_markup=_payment_review_keyboard(listing_id, payment_actions=False, moderation_actions=moderation_pending)
+    )
     if owner_telegram_id:
         try:
             await callback.bot.send_message(owner_telegram_id, f"To‘lov hali tasdiqlanmadi. Admin bilan to‘lovni kelishib, chek yoki tranzaksiya raqamini qayta yuboring. E’lon #{listing_id}.")
@@ -687,7 +697,9 @@ async def approve_listing(callback: CallbackQuery, settings: Settings) -> None:
         await session.commit()
 
     await callback.answer("E’lon tasdiqlandi." if activated else "E’lon ma’qullandi; to‘lov tasdig‘i kutilmoqda.")
-    await callback.message.edit_reply_markup(reply_markup=None)
+    await callback.message.edit_reply_markup(
+        reply_markup=None if activated else _payment_review_keyboard(listing_id, payment_actions=True, moderation_actions=False)
+    )
     if owner_telegram_id:
         status_text = (
             f"✅ E’lon #{listing_id} admin tomonidan tasdiqlandi va qidiruvda hamda kanalda chiqdi."
