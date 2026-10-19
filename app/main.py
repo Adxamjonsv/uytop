@@ -70,10 +70,13 @@ async def _bootstrap_admins(settings: Settings) -> None:
                 await session.commit()
             except IntegrityError:
                 await session.rollback()
+        superadmin_ids = set(settings.superadmin_telegram_id_list)
         for telegram_id in settings.admin_telegram_id_list:
             exists = await session.scalar(select(Admin).where(Admin.telegram_id == telegram_id))
             if exists is None:
-                session.add(Admin(username=f"telegram_{telegram_id}", telegram_id=telegram_id, password_hash=hasher.hash(f"disabled-{telegram_id}-{settings.secret_key.get_secret_value()}"), role="moderator", is_active=True))
+                session.add(Admin(username=f"telegram_{telegram_id}", telegram_id=telegram_id, password_hash=hasher.hash(f"disabled-{telegram_id}-{settings.secret_key.get_secret_value()}"), role="superadmin" if telegram_id in superadmin_ids else "moderator", is_active=True))
+            elif telegram_id in superadmin_ids and exists.role != "superadmin":
+                exists.role = "superadmin"
         for key, value in (("districts", DISTRICTS), ("property_types", [{"code": code, "label": label} for label, code in PROPERTY_TYPES])):
             setting = await session.get(PlatformSetting, key)
             if setting is None:
@@ -166,4 +169,5 @@ async def telegram_webhook(request: Request, x_telegram_bot_api_secret_token: st
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(status_code=422, content={"detail": "Kiritilgan ma’lumotlarni tekshiring.", "errors": [{"field": ".".join(str(part) for part in error["loc"] if part != "body"), "message": error["msg"]} for error in exc.errors()]})
+
 
