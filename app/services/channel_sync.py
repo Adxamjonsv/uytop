@@ -58,7 +58,7 @@ async def sync_listing_to_channel(bot: Bot, listing_id: int, channel_setting: st
         if listing is None:
             return
 
-        if listing.status != "active":
+        if listing.status != "active" or listing.payment_status != "paid" or not listing.admin_approved:
             if listing.telegram_channel_id and listing.telegram_channel_message_id:
                 source_ids = list((await session.scalars(
                     select(ListingPhoto.telegram_source_message_id).where(
