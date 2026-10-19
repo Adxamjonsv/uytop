@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: SecretStr = SecretStr("")
     admin_telegram_ids: str = ""
+    superadmin_telegram_ids: str = ""
     support_username: str = ""
     mini_app_url: str = ""
     mode: str = "polling"
@@ -69,6 +70,18 @@ class Settings(BaseSettings):
                     raise ValueError("ADMIN_TELEGRAM_IDS vergul bilan ajratilgan sonlar bo'lishi kerak") from exc
         return ids
 
+    @property
+    def superadmin_telegram_id_list(self) -> list[int]:
+        ids: list[int] = []
+        for item in self.superadmin_telegram_ids.split(","):
+            item = item.strip()
+            if item:
+                try:
+                    ids.append(int(item))
+                except ValueError as exc:
+                    raise ValueError("SUPERADMIN_TELEGRAM_IDS vergul bilan ajratilgan sonlar bo'lishi kerak") from exc
+        return ids
+
     def validate_runtime_secrets(self) -> None:
         required = {"BOT_TOKEN": self.bot_token.get_secret_value(), "SECRET_KEY": self.secret_key.get_secret_value()}
         missing = [name for name, value in required.items() if not value]
@@ -93,3 +106,4 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
+
