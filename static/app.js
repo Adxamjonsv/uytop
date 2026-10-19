@@ -218,6 +218,9 @@ async function submitMiniListing() {
 
 document.querySelectorAll(".bottom-nav button").forEach(button=>button.addEventListener("click",()=>setPage(button.dataset.page)));
 document.getElementById("profile-shortcut").addEventListener("click",()=>setPage("profile"));
-if (!tg?.initData) { screen.innerHTML='<section class="hero"><h1>UyTop’ga xush kelibsiz</h1><p>Bu Mini App’ni Telegram ichidagi bot tugmasidan oching.</p><button class="searchbar" onclick="window.location.href=\'https://t.me/Boshpanagobot\'">Telegram’ga o‘tish</button></section>'; }
-else api("/api/catalogs").then(catalogs=>{districts=catalogs.districts||districts;names={...names,...Object.fromEntries((catalogs.property_types||[]).map(item=>[item.code,item.label]))};renderHome();}).catch(fail);
-
+document.getElementById("language-switch").addEventListener("click",async()=>{
+  const selected=window.UyTopLang.toggle();
+  if(tg?.initData){try{await api("/api/me/language?language_code="+selected,{method:"PUT"});}catch(error){toast(error.message);}}
+});
+if (!tg?.initData) { screen.innerHTML='<section class="hero"><h1>UyTop’ga xush kelibsiz</h1><p>Bu Mini App’ni Telegram ichidagi bot tugmasidan oching.</p><button class="searchbar" onclick="window.location.href=\\'https://t.me/Boshpanagobot\\'">Telegram’ga o‘tish</button></section>'; }
+else api("/api/me").then(user=>{if(user.language_code)window.UyTopLang.set(user.language_code);return api("/api/catalogs");}).then(catalogs=>{districts=catalogs.districts||districts;names={...names,...Object.fromEntries((catalogs.property_types||[]).map(item=>[item.code,item.label]))};renderHome();}).catch(fail);
