@@ -17,7 +17,7 @@ from app.services.channel_sync import channel_target, sync_listing_to_channel
 logger = logging.getLogger(__name__)
 
 _DISTRICT_ALIASES = {
-    "yunusobod": ("yunusobod", "юнуcабад", "юнуcобод", "юнусабад"),
+    "yunusobod": ("yunusobod", "юнусабад", "юнусобод"),
     "chilonzor": ("chilonzor", "чиланзар"),
     "mirobod": ("mirobod", "мираба́д", "мирабад"),
     "shayxontohur": ("shayxontohur", "шайхантахур"),
@@ -121,7 +121,7 @@ def _matches_channel(message: Message, setting: str) -> bool:
     if not target:
         return False
     if target.lstrip("-").isdigit():
-        return str(message.chat.id) == target
+        return str(message.chat.id) == target or str(abs(message.chat.id)) == target
     return (message.chat.username or "").casefold() == target.lstrip("@").casefold()
 
 
