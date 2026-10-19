@@ -136,7 +136,7 @@ async def help_command(message: Message, settings: Settings) -> None:
     keyboard = None
     if support:
         from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=tr("support_button", user.language_code), url=f"https://t.me/{support}")]])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=f"✉️ @{support}", url=f"https://t.me/{support}")]])
     await message.answer(tr("help", user.language_code), reply_markup=keyboard or main_menu(settings, user.language_code, bool(message.from_user and message.from_user.id in settings.admin_telegram_id_list)))
 
 
