@@ -39,7 +39,22 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Brauzerda `http://127.0.0.1:8000/health` ni oching. Mini App Telegram ichidan ochilganda `initData` talab qiladi; oddiy brauzerda haqiqiy foydalanuvchi ma’lumotlari so‘ralmaydi. Admin panel `http://127.0.0.1:8000/admin/login` manzilida.
 
-Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi. Kanal postida sarlavha, Toshkent tumani va `Narx: 5 000 000 UZS` (yoki `Цена: 5 000 000 UZS`) kabi narx satri bo‘lsa, bot uni UyTop qidiruviga import qiladi va asl kanal postini UyTop shablonida tahrirlaydi. Rasmlar saqlanadi; albomdagi rasmlar ham bir e’longa ulanadi. Bot/mini-app orqali moderator tasdiqlagan e’lonlar kanalga chiqadi, arxivlangan yoki band qilingan e’lonlar esa kanaldan olinadi. Zarur ma’lumot topilmagan kanal posti adminlarga ogohlantirish yuboradi.
+Bot menyusi `/start`, `/search`, `/new`, `/myads`, `/help` va `/language` buyruqlari bilan ishlaydi. O‘zbekcha va ruscha tanlov saqlanadi. `ADMIN_TELEGRAM_IDS` dagi administratorlar bot menyusidan admin panelni ochishi mumkin. E’lon moderator tasdiqlamaguncha ommaviy qidiruvda ko‘rinmaydi.
+
+Kanalga e’lonni qo‘lda yozish yoki boshqa kanaldan forward qilish mumkin. Bot sarlavha, Toshkent tumani va narxni topgach, postni UyTop e’loniga aylantirib, kanal postining o‘zini brendlangan formatga keltiradi. Masalan:
+
+```text
+Kvartira Yunusobodda
+Turi: kvartira
+Bitim: ijara
+Tuman: Yunusobod
+Narx: 5 000 000 UZS
+Xonalar: 2
+Maydon: 60 m²
+Aloqa: @username
+```
+
+Narx/tuman/sarlavha topilmasa bot adminlarga xabar yuboradi va postni o‘zgartirmaydi. Kanalda bot qo‘shilishidan oldin joylangan postlar Telegram Bot API orqali tarixdan olinmaydi; ularni yangi update sifatida qayta ishlatish uchun kanal postini tahrirlang yoki qayta joylang. E’lon moderator tasdiqlagach botdan ham kanalga shu formatda chiqadi; arxivlangan, rad etilgan yoki band qilingan e’lon postlari kanaldan o‘chiriladi.
 
 ## BotFather sozlamasi
 
