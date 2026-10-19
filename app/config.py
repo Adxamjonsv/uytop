@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     superadmin_telegram_ids: str = ""
     support_username: str = ""
     telegram_channel_id: str = ""
+    listing_fee_uzs: int = Field(default=0, ge=0)
+    listing_payment_details: str = Field(default="", max_length=1000)
     mini_app_url: str = ""
     mode: str = "polling"
     log_level: str = "INFO"
